@@ -8,9 +8,38 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * 初期データ投入設定クラス。
+ *
+ * <p>アプリケーション起動時に {@link CommandLineRunner} を通じて、
+ * H2インメモリDBへサンプルデータを自動投入する。</p>
+ *
+ * <p>Phase 1（ローカル実行・インメモリ）での動作確認用。<br>
+ * {@code @Profile("local")} により、{@code spring.profiles.active=local} の場合のみ有効。
+ * Phase 2 以降（Supabase接続）ではプロファイルを切り替えることで自動的に無効化される。</p>
+ *
+ * <p>投入データ:</p>
+ * <ul>
+ *   <li>利用者（{@link Member}）— サンプル2名</li>
+ *   <li>共通設定（{@link CommonSettings}）— 事業所情報1件</li>
+ * </ul>
+ *
+ * @see com.example.CareDocWeb.repository.MemberRepository
+ * @see com.example.CareDocWeb.repository.CommonSettingsRepository
+ */
 @Configuration
 public class DataInitializer {
 
+    /**
+     * 初期データを投入する {@link CommandLineRunner} Bean。
+     *
+     * <p>Spring Boot 起動完了後に自動実行され、
+     * リポジトリ経由でサンプルデータをDBに保存する。</p>
+     *
+     * @param memberRepo   利用者リポジトリ
+     * @param settingsRepo 共通設定リポジトリ
+     * @return 初期データ投入処理を行う CommandLineRunner
+     */
     @Bean
     CommandLineRunner initData(MemberRepository memberRepo, CommonSettingsRepository settingsRepo) {
         return args -> {
@@ -55,7 +84,7 @@ public class DataInitializer {
             m2.setEndDay(31);
             memberRepo.save(m2);
 
-            // 共通設定
+            // 共通設定（事業所全体で1レコード）
             CommonSettings settings = new CommonSettings();
             settings.setSurveyAddress("東京都中央区日本橋3-3-3");
             settings.setSurveyPhone("03-1111-2222");
