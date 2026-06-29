@@ -1,0 +1,374 @@
+package com.example.CareDocWeb.service;
+
+import com.example.CareDocWeb.entity.CommonSettings;
+import com.example.CareDocWeb.repository.CommonSettingsRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+/**
+ * {@link CommonSettingsServiceImpl} のユニットテスト。
+ *
+ * <p>全メソッドに対して正常系・境界値・異常系を網羅的にカバーし、
+ * Repositoryをモック化してサービス層のロジックのみを検証する。</p>
+ *
+ * <p>{@code common_settings} テーブルは常に1レコードのみ存在する前提のため、
+ * 0件・1件・複数件のケースを中心にテストする。</p>
+ */
+@ExtendWith(MockitoExtension.class)
+class CommonSettingsServiceImplTest {
+
+    @Mock
+    private CommonSettingsRepository commonSettingsRepository;
+
+    @InjectMocks
+    private CommonSettingsServiceImpl commonSettingsService;
+
+    private CommonSettings sampleSettings;
+    private UUID sampleId;
+
+    @BeforeEach
+    void setUp() {
+        sampleId = UUID.randomUUID();
+        sampleSettings = new CommonSettings();
+        sampleSettings.setId(sampleId);
+        sampleSettings.setSurveyAddress("東京都中央区日本橋3-3-3");
+        sampleSettings.setSurveyPhone("03-1111-2222");
+        sampleSettings.setFacilityName("中央介護センター");
+        sampleSettings.setFacilityPhone("03-3333-4444");
+        sampleSettings.setInstitutionName("中央病院");
+        sampleSettings.setInstitutionAddress("東京都中央区銀座4-4-4");
+        sampleSettings.setAgentName("山田一郎");
+        sampleSettings.setAgentPostal("104-0061");
+        sampleSettings.setAgentAddress("東京都中央区銀座5-5-5");
+        sampleSettings.setAgentPhone("03-5555-6666");
+        sampleSettings.setDoctorName("佐藤医師");
+        sampleSettings.setClinicName("中央クリニック");
+        sampleSettings.setClinicPostal("104-0062");
+        sampleSettings.setClinicAddress("東京都中央区銀座6-6-6");
+        sampleSettings.setClinicPhone("03-7777-8888");
+    }
+
+    // ========================================
+    // find
+    // ========================================
+
+    @Nested
+    @DisplayName("find")
+    class Find {
+
+        // --- 正常系 ---
+
+        @Test
+        @DisplayName("正常系: 共通設定が1件存在する場合、設定値を返す")
+        void 共通設定が1件存在_設定値を返す() {
+            // Given
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
+
+            // When
+            CommonSettings result = commonSettingsService.find();
+
+            // Then
+            assertNotNull(result);
+            assertEquals(sampleId, result.getId());
+            verify(commonSettingsRepository, times(1)).findAll();
+        }
+
+        @Test
+        @DisplayName("正常系: 全フィールドが正しく取得できる")
+        void 全フィールドが正しく取得できる() {
+            // Given
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
+
+            // When
+            CommonSettings result = commonSettingsService.find();
+
+            // Then
+            assertEquals("東京都中央区日本橋3-3-3", result.getSurveyAddress());
+            assertEquals("03-1111-2222", result.getSurveyPhone());
+            assertEquals("中央介護センター", result.getFacilityName());
+            assertEquals("03-3333-4444", result.getFacilityPhone());
+            assertEquals("中央病院", result.getInstitutionName());
+            assertEquals("東京都中央区銀座4-4-4", result.getInstitutionAddress());
+            assertEquals("山田一郎", result.getAgentName());
+            assertEquals("104-0061", result.getAgentPostal());
+            assertEquals("東京都中央区銀座5-5-5", result.getAgentAddress());
+            assertEquals("03-5555-6666", result.getAgentPhone());
+            assertEquals("佐藤医師", result.getDoctorName());
+            assertEquals("中央クリニック", result.getClinicName());
+            assertEquals("104-0062", result.getClinicPostal());
+            assertEquals("東京都中央区銀座6-6-6", result.getClinicAddress());
+            assertEquals("03-7777-8888", result.getClinicPhone());
+        }
+
+        @Test
+        @DisplayName("正常系: リポジトリのfindAllが1回だけ呼ばれる")
+        void リポジトリが1回呼ばれる() {
+            // Given
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
+
+            // When
+            commonSettingsService.find();
+
+            // Then
+            verify(commonSettingsRepository, times(1)).findAll();
+            verifyNoMoreInteractions(commonSettingsRepository);
+        }
+
+        // --- 境界値 ---
+
+        @Test
+        @DisplayName("境界値: 複数レコードが存在しても先頭の1件のみ返す")
+        void 複数レコード存在する場合_先頭を返す() {
+            // Given
+            CommonSettings secondSettings = new CommonSettings();
+            secondSettings.setId(UUID.randomUUID());
+            secondSettings.setFacilityName("別の施設");
+            when(commonSettingsRepository.findAll())
+                    .thenReturn(List.of(sampleSettings, secondSettings));
+
+            // When
+            CommonSettings result = commonSettingsService.find();
+
+            // Then
+            assertEquals(sampleId, result.getId());
+            assertEquals("中央介護センター", result.getFacilityName());
+        }
+
+        @Test
+        @DisplayName("境界値: 一部フィールドがNULLの設定でも取得できる")
+        void 一部フィールドがNULL_取得できる() {
+            // Given
+            sampleSettings.setClinicName(null);
+            sampleSettings.setClinicPostal(null);
+            sampleSettings.setClinicAddress(null);
+            sampleSettings.setClinicPhone(null);
+            sampleSettings.setInstitutionName(null);
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
+
+            // When
+            CommonSettings result = commonSettingsService.find();
+
+            // Then
+            assertNotNull(result);
+            assertEquals("中央介護センター", result.getFacilityName());
+            assertNull(result.getClinicName());
+            assertNull(result.getClinicPostal());
+            assertNull(result.getClinicAddress());
+            assertNull(result.getClinicPhone());
+            assertNull(result.getInstitutionName());
+        }
+
+        @Test
+        @DisplayName("境界値: 全フィールドが空文字の設定でも取得できる")
+        void 全フィールドが空文字_取得できる() {
+            // Given
+            CommonSettings emptySettings = new CommonSettings();
+            emptySettings.setId(UUID.randomUUID());
+            emptySettings.setSurveyAddress("");
+            emptySettings.setSurveyPhone("");
+            emptySettings.setFacilityName("");
+            emptySettings.setFacilityPhone("");
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(emptySettings));
+
+            // When
+            CommonSettings result = commonSettingsService.find();
+
+            // Then
+            assertNotNull(result);
+            assertEquals("", result.getSurveyAddress());
+            assertEquals("", result.getFacilityName());
+        }
+
+        // --- 異常系 ---
+
+        @Test
+        @DisplayName("異常系: 共通設定が0件の場合、RuntimeExceptionをスローする")
+        void 共通設定0件_例外をスロー() {
+            // Given
+            when(commonSettingsRepository.findAll()).thenReturn(Collections.emptyList());
+
+            // When & Then
+            RuntimeException exception = assertThrows(RuntimeException.class,
+                    () -> commonSettingsService.find());
+            assertTrue(exception.getMessage().contains("共通設定が登録されていません"));
+            verify(commonSettingsRepository, times(1)).findAll();
+        }
+
+        @Test
+        @DisplayName("異常系: リポジトリが例外をスローした場合、そのまま伝播する")
+        void リポジトリ例外_伝播する() {
+            // Given
+            when(commonSettingsRepository.findAll())
+                    .thenThrow(new RuntimeException("DB接続エラー"));
+
+            // When & Then
+            RuntimeException exception = assertThrows(RuntimeException.class,
+                    () -> commonSettingsService.find());
+            assertEquals("DB接続エラー", exception.getMessage());
+        }
+    }
+
+    // ========================================
+    // save
+    // ========================================
+
+    @Nested
+    @DisplayName("save")
+    class Save {
+
+        // --- 正常系 ---
+
+        @Test
+        @DisplayName("正常系: 共通設定を更新して保存後のエンティティを返す")
+        void 更新_保存される() {
+            // Given
+            sampleSettings.setFacilityName("新しい施設名");
+            when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
+
+            // When
+            CommonSettings result = commonSettingsService.save(sampleSettings);
+
+            // Then
+            assertEquals(sampleId, result.getId());
+            assertEquals("新しい施設名", result.getFacilityName());
+            verify(commonSettingsRepository, times(1)).save(sampleSettings);
+        }
+
+        @Test
+        @DisplayName("正常系: 複数フィールドを同時に更新する")
+        void 複数フィールド同時に更新() {
+            // Given
+            sampleSettings.setSurveyAddress("新住所");
+            sampleSettings.setSurveyPhone("03-9999-0000");
+            sampleSettings.setDoctorName("新しい医師");
+            sampleSettings.setClinicName("新クリニック");
+            when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
+
+            // When
+            CommonSettings result = commonSettingsService.save(sampleSettings);
+
+            // Then
+            assertEquals("新住所", result.getSurveyAddress());
+            assertEquals("03-9999-0000", result.getSurveyPhone());
+            assertEquals("新しい医師", result.getDoctorName());
+            assertEquals("新クリニック", result.getClinicName());
+        }
+
+        @Test
+        @DisplayName("正常系: リポジトリのsaveが1回だけ呼ばれる")
+        void リポジトリが1回呼ばれる() {
+            // Given
+            when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
+
+            // When
+            commonSettingsService.save(sampleSettings);
+
+            // Then
+            verify(commonSettingsRepository, times(1)).save(sampleSettings);
+            verifyNoMoreInteractions(commonSettingsRepository);
+        }
+
+        // --- 境界値 ---
+
+        @Test
+        @DisplayName("境界値: 一部フィールドをNULLに更新しても保存できる")
+        void 一部NULL_保存される() {
+            // Given
+            sampleSettings.setClinicName(null);
+            sampleSettings.setClinicPostal(null);
+            sampleSettings.setClinicAddress(null);
+            sampleSettings.setClinicPhone(null);
+            when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
+
+            // When
+            CommonSettings result = commonSettingsService.save(sampleSettings);
+
+            // Then
+            assertNotNull(result.getId());
+            assertNull(result.getClinicName());
+            assertNull(result.getClinicPostal());
+            assertNull(result.getClinicAddress());
+            assertNull(result.getClinicPhone());
+            verify(commonSettingsRepository, times(1)).save(sampleSettings);
+        }
+
+        @Test
+        @DisplayName("境界値: 全フィールドを空文字に更新しても保存できる")
+        void 全フィールド空文字_保存される() {
+            // Given
+            sampleSettings.setSurveyAddress("");
+            sampleSettings.setSurveyPhone("");
+            sampleSettings.setFacilityName("");
+            sampleSettings.setFacilityPhone("");
+            sampleSettings.setAgentName("");
+            sampleSettings.setDoctorName("");
+            sampleSettings.setClinicName("");
+            when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
+
+            // When
+            CommonSettings result = commonSettingsService.save(sampleSettings);
+
+            // Then
+            assertEquals("", result.getSurveyAddress());
+            assertEquals("", result.getFacilityName());
+            assertEquals("", result.getAgentName());
+            assertEquals("", result.getDoctorName());
+        }
+
+        @Test
+        @DisplayName("境界値: 住所が非常に長い文字列でも保存できる")
+        void 長い文字列_保存される() {
+            // Given
+            String longAddress = "あ".repeat(500);
+            sampleSettings.setSurveyAddress(longAddress);
+            when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
+
+            // When
+            CommonSettings result = commonSettingsService.save(sampleSettings);
+
+            // Then
+            assertEquals(500, result.getSurveyAddress().length());
+        }
+
+        // --- 異常系 ---
+
+        @Test
+        @DisplayName("異常系: NULLのエンティティを渡した場合、リポジトリに委譲される")
+        void NULLエンティティ_リポジトリに委譲() {
+            // Given
+            when(commonSettingsRepository.save(null))
+                    .thenThrow(new IllegalArgumentException("エンティティがnullです"));
+
+            // When & Then
+            assertThrows(IllegalArgumentException.class,
+                    () -> commonSettingsService.save(null));
+            verify(commonSettingsRepository, times(1)).save(null);
+        }
+
+        @Test
+        @DisplayName("異常系: リポジトリが例外をスローした場合、そのまま伝播する")
+        void リポジトリ例外_伝播する() {
+            // Given
+            when(commonSettingsRepository.save(sampleSettings))
+                    .thenThrow(new RuntimeException("DB書き込みエラー"));
+
+            // When & Then
+            RuntimeException exception = assertThrows(RuntimeException.class,
+                    () -> commonSettingsService.save(sampleSettings));
+            assertEquals("DB書き込みエラー", exception.getMessage());
+        }
+    }
+}
