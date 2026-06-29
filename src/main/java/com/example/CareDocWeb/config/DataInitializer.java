@@ -7,6 +7,7 @@ import com.example.CareDocWeb.repository.MemberRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 /**
  * 初期データ投入設定クラス。
@@ -28,6 +29,7 @@ import org.springframework.context.annotation.Configuration;
  * @see com.example.CareDocWeb.repository.CommonSettingsRepository
  */
 @Configuration
+@Profile("local")
 public class DataInitializer {
 
     /**
