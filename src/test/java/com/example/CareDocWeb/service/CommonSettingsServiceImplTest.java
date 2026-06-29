@@ -21,8 +21,8 @@ import static org.mockito.Mockito.*;
 /**
  * {@link CommonSettingsServiceImpl} のユニットテスト。
  *
- * <p>全メソッドに対して正常系・境界値・異常系を網羅的にカバーし、
- * Repositoryをモック化してサービス層のロジックのみを検証する。</p>
+ * <p>全メソッドに対して正常系・境界値・異常系を網羅的にカバーする。
+ * Repositoryをモック化し、サービス層のロジックのみを検証する。</p>
  *
  * <p>{@code common_settings} テーブルは常に1レコードのみ存在する前提のため、
  * 0件・1件・複数件のケースを中心にテストする。</p>
@@ -73,14 +73,14 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("正常系: 共通設定が1件存在する場合、設定値を返す")
-        void 共通設定が1件存在_設定値を返す() {
-            // Given
+        void returnsSettings_whenOneRecordExists() {
+            // 準備
             when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.find();
 
-            // Then
+            // 検証
             assertNotNull(result);
             assertEquals(sampleId, result.getId());
             verify(commonSettingsRepository, times(1)).findAll();
@@ -88,14 +88,14 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("正常系: 全フィールドが正しく取得できる")
-        void 全フィールドが正しく取得できる() {
-            // Given
+        void returnsAllFieldsCorrectly() {
+            // 準備
             when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.find();
 
-            // Then
+            // 検証
             assertEquals("東京都中央区日本橋3-3-3", result.getSurveyAddress());
             assertEquals("03-1111-2222", result.getSurveyPhone());
             assertEquals("中央介護センター", result.getFacilityName());
@@ -115,14 +115,14 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("正常系: リポジトリのfindAllが1回だけ呼ばれる")
-        void リポジトリが1回呼ばれる() {
-            // Given
+        void callsRepositoryExactlyOnce() {
+            // 準備
             when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
 
-            // When
+            // 実行
             commonSettingsService.find();
 
-            // Then
+            // 検証
             verify(commonSettingsRepository, times(1)).findAll();
             verifyNoMoreInteractions(commonSettingsRepository);
         }
@@ -131,26 +131,26 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("境界値: 複数レコードが存在しても先頭の1件のみ返す")
-        void 複数レコード存在する場合_先頭を返す() {
-            // Given
+        void returnsFirstRecord_whenMultipleExist() {
+            // 準備
             CommonSettings secondSettings = new CommonSettings();
             secondSettings.setId(UUID.randomUUID());
             secondSettings.setFacilityName("別の施設");
             when(commonSettingsRepository.findAll())
                     .thenReturn(List.of(sampleSettings, secondSettings));
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.find();
 
-            // Then
+            // 検証
             assertEquals(sampleId, result.getId());
             assertEquals("中央介護センター", result.getFacilityName());
         }
 
         @Test
         @DisplayName("境界値: 一部フィールドがNULLの設定でも取得できる")
-        void 一部フィールドがNULL_取得できる() {
-            // Given
+        void returnsSettings_withNullFields() {
+            // 準備
             sampleSettings.setClinicName(null);
             sampleSettings.setClinicPostal(null);
             sampleSettings.setClinicAddress(null);
@@ -158,10 +158,10 @@ class CommonSettingsServiceImplTest {
             sampleSettings.setInstitutionName(null);
             when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.find();
 
-            // Then
+            // 検証
             assertNotNull(result);
             assertEquals("中央介護センター", result.getFacilityName());
             assertNull(result.getClinicName());
@@ -173,8 +173,8 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("境界値: 全フィールドが空文字の設定でも取得できる")
-        void 全フィールドが空文字_取得できる() {
-            // Given
+        void returnsSettings_withEmptyStrings() {
+            // 準備
             CommonSettings emptySettings = new CommonSettings();
             emptySettings.setId(UUID.randomUUID());
             emptySettings.setSurveyAddress("");
@@ -183,10 +183,10 @@ class CommonSettingsServiceImplTest {
             emptySettings.setFacilityPhone("");
             when(commonSettingsRepository.findAll()).thenReturn(List.of(emptySettings));
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.find();
 
-            // Then
+            // 検証
             assertNotNull(result);
             assertEquals("", result.getSurveyAddress());
             assertEquals("", result.getFacilityName());
@@ -196,11 +196,11 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("異常系: 共通設定が0件の場合、RuntimeExceptionをスローする")
-        void 共通設定0件_例外をスロー() {
-            // Given
+        void throwsException_whenNoRecords() {
+            // 準備
             when(commonSettingsRepository.findAll()).thenReturn(Collections.emptyList());
 
-            // When & Then
+            // 実行 & 検証
             RuntimeException exception = assertThrows(RuntimeException.class,
                     () -> commonSettingsService.find());
             assertTrue(exception.getMessage().contains("共通設定が登録されていません"));
@@ -209,12 +209,12 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("異常系: リポジトリが例外をスローした場合、そのまま伝播する")
-        void リポジトリ例外_伝播する() {
-            // Given
+        void propagatesException_whenRepositoryThrows() {
+            // 準備
             when(commonSettingsRepository.findAll())
                     .thenThrow(new RuntimeException("DB接続エラー"));
 
-            // When & Then
+            // 実行 & 検証
             RuntimeException exception = assertThrows(RuntimeException.class,
                     () -> commonSettingsService.find());
             assertEquals("DB接続エラー", exception.getMessage());
@@ -233,15 +233,15 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("正常系: 共通設定を更新して保存後のエンティティを返す")
-        void 更新_保存される() {
-            // Given
+        void savesAndReturnsUpdatedEntity() {
+            // 準備
             sampleSettings.setFacilityName("新しい施設名");
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.save(sampleSettings);
 
-            // Then
+            // 検証
             assertEquals(sampleId, result.getId());
             assertEquals("新しい施設名", result.getFacilityName());
             verify(commonSettingsRepository, times(1)).save(sampleSettings);
@@ -249,18 +249,18 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("正常系: 複数フィールドを同時に更新する")
-        void 複数フィールド同時に更新() {
-            // Given
+        void updatesMultipleFields() {
+            // 準備
             sampleSettings.setSurveyAddress("新住所");
             sampleSettings.setSurveyPhone("03-9999-0000");
             sampleSettings.setDoctorName("新しい医師");
             sampleSettings.setClinicName("新クリニック");
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.save(sampleSettings);
 
-            // Then
+            // 検証
             assertEquals("新住所", result.getSurveyAddress());
             assertEquals("03-9999-0000", result.getSurveyPhone());
             assertEquals("新しい医師", result.getDoctorName());
@@ -269,14 +269,14 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("正常系: リポジトリのsaveが1回だけ呼ばれる")
-        void リポジトリが1回呼ばれる() {
-            // Given
+        void callsRepositoryExactlyOnce() {
+            // 準備
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
-            // When
+            // 実行
             commonSettingsService.save(sampleSettings);
 
-            // Then
+            // 検証
             verify(commonSettingsRepository, times(1)).save(sampleSettings);
             verifyNoMoreInteractions(commonSettingsRepository);
         }
@@ -285,18 +285,18 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("境界値: 一部フィールドをNULLに更新しても保存できる")
-        void 一部NULL_保存される() {
-            // Given
+        void savesWithNullFields() {
+            // 準備
             sampleSettings.setClinicName(null);
             sampleSettings.setClinicPostal(null);
             sampleSettings.setClinicAddress(null);
             sampleSettings.setClinicPhone(null);
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.save(sampleSettings);
 
-            // Then
+            // 検証
             assertNotNull(result.getId());
             assertNull(result.getClinicName());
             assertNull(result.getClinicPostal());
@@ -307,8 +307,8 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("境界値: 全フィールドを空文字に更新しても保存できる")
-        void 全フィールド空文字_保存される() {
-            // Given
+        void savesWithEmptyStrings() {
+            // 準備
             sampleSettings.setSurveyAddress("");
             sampleSettings.setSurveyPhone("");
             sampleSettings.setFacilityName("");
@@ -318,10 +318,10 @@ class CommonSettingsServiceImplTest {
             sampleSettings.setClinicName("");
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.save(sampleSettings);
 
-            // Then
+            // 検証
             assertEquals("", result.getSurveyAddress());
             assertEquals("", result.getFacilityName());
             assertEquals("", result.getAgentName());
@@ -330,16 +330,16 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("境界値: 住所が非常に長い文字列でも保存できる")
-        void 長い文字列_保存される() {
-            // Given
+        void savesWithVeryLongString() {
+            // 準備
             String longAddress = "あ".repeat(500);
             sampleSettings.setSurveyAddress(longAddress);
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
-            // When
+            // 実行
             CommonSettings result = commonSettingsService.save(sampleSettings);
 
-            // Then
+            // 検証
             assertEquals(500, result.getSurveyAddress().length());
         }
 
@@ -347,12 +347,12 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("異常系: NULLのエンティティを渡した場合、リポジトリに委譲される")
-        void NULLエンティティ_リポジトリに委譲() {
-            // Given
+        void throwsException_whenEntityIsNull() {
+            // 準備
             when(commonSettingsRepository.save(null))
                     .thenThrow(new IllegalArgumentException("エンティティがnullです"));
 
-            // When & Then
+            // 実行 & 検証
             assertThrows(IllegalArgumentException.class,
                     () -> commonSettingsService.save(null));
             verify(commonSettingsRepository, times(1)).save(null);
@@ -360,12 +360,12 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("異常系: リポジトリが例外をスローした場合、そのまま伝播する")
-        void リポジトリ例外_伝播する() {
-            // Given
+        void propagatesException_whenRepositoryThrows() {
+            // 準備
             when(commonSettingsRepository.save(sampleSettings))
                     .thenThrow(new RuntimeException("DB書き込みエラー"));
 
-            // When & Then
+            // 実行 & 検証
             RuntimeException exception = assertThrows(RuntimeException.class,
                     () -> commonSettingsService.save(sampleSettings));
             assertEquals("DB書き込みエラー", exception.getMessage());
