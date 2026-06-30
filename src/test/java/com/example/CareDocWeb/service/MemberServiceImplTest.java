@@ -276,6 +276,7 @@ class MemberServiceImplTest {
             // 実行 & 検証
             assertThrows(RuntimeException.class,
                     () -> memberService.findById(null));
+            verify(memberRepository, times(1)).findById(null);
         }
 
         @Test
