@@ -236,6 +236,7 @@ class CommonSettingsServiceImplTest {
         void savesAndReturnsUpdatedEntity() {
             // 準備
             sampleSettings.setFacilityName("新しい施設名");
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
             // 実行
@@ -255,6 +256,7 @@ class CommonSettingsServiceImplTest {
             sampleSettings.setSurveyPhone("03-9999-0000");
             sampleSettings.setDoctorName("新しい医師");
             sampleSettings.setClinicName("新クリニック");
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
             // 実行
@@ -271,6 +273,7 @@ class CommonSettingsServiceImplTest {
         @DisplayName("正常系: リポジトリのsaveが1回だけ呼ばれる")
         void callsRepositoryExactlyOnce() {
             // 準備
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
             // 実行
@@ -291,6 +294,7 @@ class CommonSettingsServiceImplTest {
             sampleSettings.setClinicPostal(null);
             sampleSettings.setClinicAddress(null);
             sampleSettings.setClinicPhone(null);
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
             // 実行
@@ -316,6 +320,7 @@ class CommonSettingsServiceImplTest {
             sampleSettings.setAgentName("");
             sampleSettings.setDoctorName("");
             sampleSettings.setClinicName("");
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
             // 実行
@@ -334,6 +339,7 @@ class CommonSettingsServiceImplTest {
             // 準備
             String longAddress = "あ".repeat(500);
             sampleSettings.setSurveyAddress(longAddress);
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
             when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
 
             // 実行
@@ -349,6 +355,7 @@ class CommonSettingsServiceImplTest {
         @DisplayName("異常系: NULLのエンティティを渡した場合、リポジトリに委譲される")
         void throwsException_whenEntityIsNull() {
             // 準備
+            when(commonSettingsRepository.findAll()).thenReturn(Collections.emptyList());
             when(commonSettingsRepository.save(null))
                     .thenThrow(new IllegalArgumentException("エンティティがnullです"));
 
@@ -362,6 +369,7 @@ class CommonSettingsServiceImplTest {
         @DisplayName("異常系: リポジトリが例外をスローした場合、そのまま伝播する")
         void propagatesException_whenRepositoryThrows() {
             // 準備
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
             when(commonSettingsRepository.save(sampleSettings))
                     .thenThrow(new RuntimeException("DB書き込みエラー"));
 
