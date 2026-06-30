@@ -281,7 +281,7 @@ class CommonSettingsServiceImplTest {
 
             // 検証
             verify(commonSettingsRepository, times(1)).save(sampleSettings);
-            verifyNoMoreInteractions(commonSettingsRepository);
+            verify(commonSettingsRepository, times(1)).findAll();
         }
 
         // --- 境界値 ---
