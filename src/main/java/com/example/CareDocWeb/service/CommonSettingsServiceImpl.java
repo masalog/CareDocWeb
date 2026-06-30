@@ -48,6 +48,11 @@ public class CommonSettingsServiceImpl implements CommonSettingsService {
     @Override
     @Transactional
     public CommonSettings save(CommonSettings settings) {
+        // 既存レコードが存在する場合、そのIDを引き継いで上書きする（単一行の保証）
+        commonSettingsRepository.findAll()
+                .stream()
+                .findFirst()
+                .ifPresent(existing -> settings.setId(existing.getId()));
         return commonSettingsRepository.save(settings);
     }
 }
