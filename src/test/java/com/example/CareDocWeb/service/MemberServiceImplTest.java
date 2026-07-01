@@ -1,6 +1,7 @@
 package com.example.CareDocWeb.service;
 
 import com.example.CareDocWeb.entity.Member;
+import com.example.CareDocWeb.exception.ResourceNotFoundException;
 import com.example.CareDocWeb.repository.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -261,7 +262,7 @@ class MemberServiceImplTest {
             when(memberRepository.findById(nonExistentId)).thenReturn(Optional.empty());
 
             // 実行 & 検証
-            RuntimeException exception = assertThrows(RuntimeException.class,
+            ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
                     () -> memberService.findById(nonExistentId));
             assertTrue(exception.getMessage().contains(nonExistentId.toString()));
             verify(memberRepository, times(1)).findById(nonExistentId);
@@ -274,7 +275,7 @@ class MemberServiceImplTest {
             when(memberRepository.findById(null)).thenReturn(Optional.empty());
 
             // 実行 & 検証
-            assertThrows(RuntimeException.class,
+            assertThrows(ResourceNotFoundException.class,
                     () -> memberService.findById(null));
             verify(memberRepository, times(1)).findById(null);
         }

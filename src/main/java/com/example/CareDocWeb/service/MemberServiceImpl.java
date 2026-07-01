@@ -1,6 +1,7 @@
 package com.example.CareDocWeb.service;
 
 import com.example.CareDocWeb.entity.Member;
+import com.example.CareDocWeb.exception.ResourceNotFoundException;
 import com.example.CareDocWeb.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -1,6 +1,7 @@
 package com.example.CareDocWeb.service;
 
 import com.example.CareDocWeb.entity.CommonSettings;
+import com.example.CareDocWeb.exception.ResourceNotFoundException;
 import com.example.CareDocWeb.repository.CommonSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,7 +33,7 @@ public class CommonSettingsServiceImpl implements CommonSettingsService {
         return commonSettingsRepository.findAll()
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("共通設定が登録されていません"));
+                .orElseThrow(() -> new ResourceNotFoundException("共通設定が登録されていません"));
     }
 
     /**
