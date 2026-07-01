@@ -279,6 +279,7 @@ class MemberControllerTest {
         void returns200_withUpdatedMember() throws Exception {
             // 準備
             sampleMember.setCareLevel("要介護3");
+            when(memberService.existsById(sampleId)).thenReturn(true);
             when(memberService.save(any(Member.class))).thenReturn(sampleMember);
 
             // 実行 & 検証
@@ -308,6 +309,7 @@ class MemberControllerTest {
         @DisplayName("異常系: サービスが例外をスローした場合、500を返す")
         void returns500_whenServiceThrows() throws Exception {
             // 準備
+            when(memberService.existsById(sampleId)).thenReturn(true);
             when(memberService.save(any(Member.class)))
                     .thenThrow(new RuntimeException("DB書き込みエラー"));
 
@@ -333,6 +335,7 @@ class MemberControllerTest {
         @DisplayName("正常系: 利用者を削除して204で返す")
         void returns204_whenDeleted() throws Exception {
             // 準備
+            when(memberService.existsById(sampleId)).thenReturn(true);
             doNothing().when(memberService).deleteById(sampleId);
 
             // 実行 & 検証
@@ -370,6 +373,7 @@ class MemberControllerTest {
         @DisplayName("異常系: サービスが例外をスローした場合、500を返す")
         void returns500_whenServiceThrows() throws Exception {
             // 準備
+            when(memberService.existsById(sampleId)).thenReturn(true);
             doThrow(new RuntimeException("DB削除エラー"))
                     .when(memberService).deleteById(sampleId);
 
