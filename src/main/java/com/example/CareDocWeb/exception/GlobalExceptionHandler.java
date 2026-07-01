@@ -15,7 +15,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * <p>コントローラー層で発生した例外をキャッチし、
  * 適切なHTTPステータスコードとエラーメッセージを返す。</p>
  *
- * <p>未ハンドルの {@link RuntimeException} は500 Internal Server Errorとして返却する。</p>
+ * <p>セキュリティ上、内部の例外メッセージはクライアントに返さず、
+ * サーバーログに記録する。クライアントには汎用的なメッセージのみ返却する。</p>
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -23,14 +24,14 @@ public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
-     * RuntimeExceptionをハンドルし、500エラーとして返す。
+     * リソースが見つからない場合、404 Not Foundを返す。
      *
      * @param ex 発生した例外
-     * @return 500ステータスとエラーメッセージ
+     * @return 404ステータスとエラーメッセージ
      */
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<String> handleResourceNotFound(ResourceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ex.getMessage());
     }
 
