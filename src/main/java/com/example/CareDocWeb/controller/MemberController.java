@@ -1,7 +1,6 @@
 package com.example.CareDocWeb.controller;
 
 import com.example.CareDocWeb.entity.Member;
-import com.example.CareDocWeb.exception.ResourceNotFoundException;
 import com.example.CareDocWeb.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -72,7 +71,8 @@ public class MemberController {
     /**
      * IDを指定して利用者を更新する。
      *
-     * <p>指定IDの利用者が存在しない場合は404を返す。</p>
+     * <p>指定IDの利用者が存在しない場合は404を返す。
+     * 存在確認と更新はサービス層で同一トランザクション内に処理される。</p>
      *
      * @param id 更新対象の利用者UUID
      * @param member 更新データ
@@ -80,28 +80,22 @@ public class MemberController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<Member> update(@PathVariable UUID id, @RequestBody Member member) {
-        if (!memberService.existsById(id)) {
-            throw new ResourceNotFoundException("利用者が見つかりません: " + id);
-        }
-        member.setId(id);
-        Member updatedMember = memberService.save(member);
+        Member updatedMember = memberService.update(id, member);
         return ResponseEntity.ok(updatedMember);
     }
 
     /**
      * IDを指定して利用者を削除する。
      *
-     * <p>指定IDの利用者が存在しない場合は404を返す。</p>
+     * <p>指定IDの利用者が存在しない場合は404を返す。
+     * 存在確認と削除はサービス層で同一トランザクション内に処理される。</p>
      *
      * @param id 削除対象の利用者UUID
      * @return 204 No Content
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        if (!memberService.existsById(id)) {
-            throw new ResourceNotFoundException("利用者が見つかりません: " + id);
-        }
-        memberService.deleteById(id);
+        memberService.delete(id);
         return ResponseEntity.noContent().build();
     }
 }
