@@ -40,9 +40,26 @@ public interface MemberService {
     Member save(Member member);
 
     /**
+     * IDを指定して利用者を更新する。
+     *
+     * <p>存在確認と更新を同一トランザクション内で行い、競合状態を防止する。
+     * 指定IDの利用者が存在しない場合は例外をスローする。</p>
+     *
+     * @param id 更新対象の利用者UUID
+     * @param member 更新データ
+     * @return 更新後の利用者エンティティ
+     * @throws com.example.CareDocWeb.exception.ResourceNotFoundException 指定IDの利用者が存在しない場合
+     */
+    Member update(UUID id, Member member);
+
+    /**
      * IDを指定して利用者を削除する。
      *
+     * <p>存在確認と削除を同一トランザクション内で行い、競合状態を防止する。
+     * 指定IDの利用者が存在しない場合は例外をスローする。</p>
+     *
      * @param id 削除対象の利用者UUID
+     * @throws com.example.CareDocWeb.exception.ResourceNotFoundException 指定IDの利用者が存在しない場合
      */
-    void deleteById(UUID id);
+    void delete(UUID id);
 }

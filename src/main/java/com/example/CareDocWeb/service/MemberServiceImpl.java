@@ -59,7 +59,10 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     @Transactional
-    public Member save(Member member) {
+    public Member update(UUID id, Member member) {
+        // 存在確認と更新を同一トランザクション内で実行
+        findById(id);
+        member.setId(id);
         return memberRepository.save(member);
     }
 
@@ -68,7 +71,9 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     @Transactional
-    public void deleteById(UUID id) {
+    public void delete(UUID id) {
+        // 存在確認と削除を同一トランザクション内で実行
+        findById(id);
         memberRepository.deleteById(id);
     }
 }
