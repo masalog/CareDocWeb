@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -279,8 +280,7 @@ class MemberControllerTest {
         void returns200_withUpdatedMember() throws Exception {
             // 準備
             sampleMember.setCareLevel("要介護3");
-            when(memberService.existsById(sampleId)).thenReturn(true);
-            when(memberService.save(any(Member.class))).thenReturn(sampleMember);
+            when(memberService.update(eq(sampleId), any(Member.class))).thenReturn(sampleMember);
 
             // 実行 & 検証
             mockMvc.perform(put("/api/members/{id}", sampleId)
@@ -290,7 +290,7 @@ class MemberControllerTest {
                     .andExpect(jsonPath("$.id").value(sampleId.toString()))
                     .andExpect(jsonPath("$.careLevel").value("要介護3"));
 
-            verify(memberService, times(1)).save(any(Member.class));
+            verify(memberService, times(1)).update(eq(sampleId), any(Member.class));
         }
 
         // --- 異常系 ---
@@ -309,8 +309,7 @@ class MemberControllerTest {
         @DisplayName("異常系: サービスが例外をスローした場合、500を返す")
         void returns500_whenServiceThrows() throws Exception {
             // 準備
-            when(memberService.existsById(sampleId)).thenReturn(true);
-            when(memberService.save(any(Member.class)))
+            when(memberService.update(eq(sampleId), any(Member.class)))
                     .thenThrow(new RuntimeException("DB書き込みエラー"));
 
             // 実行 & 検証
@@ -325,7 +324,8 @@ class MemberControllerTest {
         void returns404_whenIdDoesNotExist() throws Exception {
             // 準備
             UUID nonExistentId = UUID.randomUUID();
-            when(memberService.existsById(nonExistentId)).thenReturn(false);
+            when(memberService.update(eq(nonExistentId), any(Member.class)))
+                    .thenThrow(new com.example.CareDocWeb.exception.ResourceNotFoundException("利用者が見つかりません: " + nonExistentId));
 
             // 実行 & 検証
             mockMvc.perform(put("/api/members/{id}", nonExistentId)
@@ -349,14 +349,13 @@ class MemberControllerTest {
         @DisplayName("正常系: 利用者を削除して204で返す")
         void returns204_whenDeleted() throws Exception {
             // 準備
-            when(memberService.existsById(sampleId)).thenReturn(true);
-            doNothing().when(memberService).deleteById(sampleId);
+            doNothing().when(memberService).delete(sampleId);
 
             // 実行 & 検証
             mockMvc.perform(delete("/api/members/{id}", sampleId))
                     .andExpect(status().isNoContent());
 
-            verify(memberService, times(1)).deleteById(sampleId);
+            verify(memberService, times(1)).delete(sampleId);
         }
 
         // --- 境界値 ---
@@ -366,7 +365,8 @@ class MemberControllerTest {
         void returns404_whenIdDoesNotExist() throws Exception {
             // 準備
             UUID nonExistentId = UUID.randomUUID();
-            when(memberService.existsById(nonExistentId)).thenReturn(false);
+            doThrow(new com.example.CareDocWeb.exception.ResourceNotFoundException("利用者が見つかりません: " + nonExistentId))
+                    .when(memberService).delete(nonExistentId);
 
             // 実行 & 検証
             mockMvc.perform(delete("/api/members/{id}", nonExistentId))
@@ -387,9 +387,8 @@ class MemberControllerTest {
         @DisplayName("異常系: サービスが例外をスローした場合、500を返す")
         void returns500_whenServiceThrows() throws Exception {
             // 準備
-            when(memberService.existsById(sampleId)).thenReturn(true);
             doThrow(new RuntimeException("DB削除エラー"))
-                    .when(memberService).deleteById(sampleId);
+                    .when(memberService).delete(sampleId);
 
             // 実行 & 検証
             mockMvc.perform(delete("/api/members/{id}", sampleId))
