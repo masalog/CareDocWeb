@@ -27,24 +27,14 @@ public interface MemberService {
      *
      * @param id 利用者のUUID
      * @return 該当する利用者
-     * @throws RuntimeException 指定IDの利用者が存在しない場合
+     * @throws com.example.CareDocWeb.exception.ResourceNotFoundException 指定IDの利用者が存在しない場合
      */
     Member findById(UUID id);
 
     /**
-     * 指定したIDの利用者が存在するか確認する。
+     * 利用者を新規登録する。
      *
-     * @param id 利用者のUUID
-     * @return 存在する場合はtrue、存在しない場合はfalse
-     */
-    boolean existsById(UUID id);
-
-    /**
-     * 利用者を登録または更新する。
-     *
-     * <p>IDが未設定の場合は新規登録、設定済みの場合は更新として扱われる。</p>
-     *
-     * @param member 登録・更新する利用者エンティティ
+     * @param member 登録する利用者エンティティ
      * @return 保存後の利用者エンティティ（ID・タイムスタンプが設定済み）
      */
     Member save(Member member);

@@ -17,7 +17,7 @@ import java.util.UUID;
  * {@link MemberRepository} を通じて利用者データのCRUD操作を提供する。</p>
  *
  * <p>更新・削除系のメソッドには {@code @Transactional} を付与し、
- * トランザクション管理を Spring に委譲している。</p>
+ * 存在確認と操作を同一トランザクション内で完結させることで競合状態を防止する。</p>
  *
  * @see MemberService
  * @see MemberRepository
@@ -49,8 +49,9 @@ public class MemberServiceImpl implements MemberService {
      * {@inheritDoc}
      */
     @Override
-    public boolean existsById(UUID id) {
-        return memberRepository.existsById(id);
+    @Transactional
+    public Member save(Member member) {
+        return memberRepository.save(member);
     }
 
     /**
