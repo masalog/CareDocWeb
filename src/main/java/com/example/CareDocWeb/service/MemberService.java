@@ -32,6 +32,14 @@ public interface MemberService {
     Member findById(UUID id);
 
     /**
+     * 指定したIDの利用者が存在するか確認する。
+     *
+     * @param id 利用者のUUID
+     * @return 存在する場合はtrue、存在しない場合はfalse
+     */
+    boolean existsById(UUID id);
+
+    /**
      * 利用者を登録または更新する。
      *
      * <p>IDが未設定の場合は新規登録、設定済みの場合は更新として扱われる。</p>

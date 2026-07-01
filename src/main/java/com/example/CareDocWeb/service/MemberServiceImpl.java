@@ -42,7 +42,15 @@ public class MemberServiceImpl implements MemberService {
     @Override
     public Member findById(UUID id) {
         return memberRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("利用者が見つかりません: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("利用者が見つかりません: " + id));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean existsById(UUID id) {
+        return memberRepository.existsById(id);
     }
 
     /**
