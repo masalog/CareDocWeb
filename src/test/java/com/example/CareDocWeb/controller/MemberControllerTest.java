@@ -319,6 +319,20 @@ class MemberControllerTest {
                             .content(objectMapper.writeValueAsString(sampleMember)))
                     .andExpect(status().isInternalServerError());
         }
+
+        @Test
+        @DisplayName("異常系: 存在しないIDで更新しようとした場合、404を返す")
+        void returns404_whenIdDoesNotExist() throws Exception {
+            // 準備
+            UUID nonExistentId = UUID.randomUUID();
+            when(memberService.existsById(nonExistentId)).thenReturn(false);
+
+            // 実行 & 検証
+            mockMvc.perform(put("/api/members/{id}", nonExistentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(sampleMember)))
+                    .andExpect(status().isNotFound());
+        }
     }
 
     // ========================================
