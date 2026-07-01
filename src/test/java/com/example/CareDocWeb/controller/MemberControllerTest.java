@@ -166,11 +166,11 @@ class MemberControllerTest {
         }
 
         @Test
-        @DisplayName("異常系: 不正なID形式の場合、エラーを返す")
-        void returnsError_whenInvalidIdFormat() throws Exception {
+        @DisplayName("異常系: 不正なID形式の場合、400を返す")
+        void returns400_whenInvalidIdFormat() throws Exception {
             // 実行 & 検証
             mockMvc.perform(get("/api/members/{id}", "invalid-uuid"))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isBadRequest());
         }
     }
 
@@ -237,13 +237,13 @@ class MemberControllerTest {
         // --- 異常系 ---
 
         @Test
-        @DisplayName("異常系: リクエストボディが空の場合、エラーを返す")
-        void returnsError_whenBodyIsEmpty() throws Exception {
+        @DisplayName("異常系: リクエストボディが空の場合、400を返す")
+        void returns400_whenBodyIsEmpty() throws Exception {
             // 実行 & 検証
             mockMvc.perform(post("/api/members")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(""))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isBadRequest());
         }
 
         @Test
@@ -295,13 +295,13 @@ class MemberControllerTest {
         // --- 異常系 ---
 
         @Test
-        @DisplayName("異常系: 不正なID形式の場合、エラーを返す")
-        void returnsError_whenInvalidIdFormat() throws Exception {
+        @DisplayName("異常系: 不正なID形式の場合、400を返す")
+        void returns400_whenInvalidIdFormat() throws Exception {
             // 実行 & 検証
             mockMvc.perform(put("/api/members/{id}", "invalid-uuid")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(sampleMember)))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isBadRequest());
         }
 
         @Test
@@ -359,11 +359,11 @@ class MemberControllerTest {
         // --- 異常系 ---
 
         @Test
-        @DisplayName("異常系: 不正なID形式の場合、エラーを返す")
-        void returnsError_whenInvalidIdFormat() throws Exception {
+        @DisplayName("異常系: 不正なID形式の場合、400を返す")
+        void returns400_whenInvalidIdFormat() throws Exception {
             // 実行 & 検証
             mockMvc.perform(delete("/api/members/{id}", "invalid-uuid"))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isBadRequest());
         }
 
         @Test
