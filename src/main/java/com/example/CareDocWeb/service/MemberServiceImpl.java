@@ -1,7 +1,9 @@
 package com.example.CareDocWeb.service;
 
 import com.example.CareDocWeb.entity.Member;
+import com.example.CareDocWeb.exception.ResourceNotFoundException;
 import com.example.CareDocWeb.repository.MemberRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,24 +17,16 @@ import java.util.UUID;
  * {@link MemberRepository} を通じて利用者データのCRUD操作を提供する。</p>
  *
  * <p>更新・削除系のメソッドには {@code @Transactional} を付与し、
- * トランザクション管理を Spring に委譲している。</p>
+ * 存在確認と操作を同一トランザクション内で完結させることで競合状態を防止する。</p>
  *
  * @see MemberService
  * @see MemberRepository
  */
 @Service
+@RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
 
     private final MemberRepository memberRepository;
-
-    /**
-     * コンストラクタインジェクション。
-     *
-     * @param memberRepository 利用者リポジトリ
-     */
-    public MemberServiceImpl(MemberRepository memberRepository) {
-        this.memberRepository = memberRepository;
-    }
 
     /**
      * {@inheritDoc}
@@ -48,7 +42,7 @@ public class MemberServiceImpl implements MemberService {
     @Override
     public Member findById(UUID id) {
         return memberRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("利用者が見つかりません: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("利用者が見つかりません: " + id));
     }
 
     /**
@@ -65,7 +59,21 @@ public class MemberServiceImpl implements MemberService {
      */
     @Override
     @Transactional
-    public void deleteById(UUID id) {
+    public Member update(UUID id, Member member) {
+        // 存在確認と更新を同一トランザクション内で実行
+        findById(id);
+        member.setId(id);
+        return memberRepository.save(member);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public void delete(UUID id) {
+        // 存在確認と削除を同一トランザクション内で実行
+        findById(id);
         memberRepository.deleteById(id);
     }
 }

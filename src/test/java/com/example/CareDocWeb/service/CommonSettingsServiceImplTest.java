@@ -1,6 +1,7 @@
 package com.example.CareDocWeb.service;
 
 import com.example.CareDocWeb.entity.CommonSettings;
+import com.example.CareDocWeb.exception.ResourceNotFoundException;
 import com.example.CareDocWeb.repository.CommonSettingsRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -201,7 +202,7 @@ class CommonSettingsServiceImplTest {
             when(commonSettingsRepository.findAll()).thenReturn(Collections.emptyList());
 
             // 実行 & 検証
-            RuntimeException exception = assertThrows(RuntimeException.class,
+            ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
                     () -> commonSettingsService.find());
             assertTrue(exception.getMessage().contains("共通設定が登録されていません"));
             verify(commonSettingsRepository, times(1)).findAll();

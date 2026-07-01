@@ -27,24 +27,39 @@ public interface MemberService {
      *
      * @param id 利用者のUUID
      * @return 該当する利用者
-     * @throws RuntimeException 指定IDの利用者が存在しない場合
+     * @throws com.example.CareDocWeb.exception.ResourceNotFoundException 指定IDの利用者が存在しない場合
      */
     Member findById(UUID id);
 
     /**
-     * 利用者を登録または更新する。
+     * 利用者を新規登録する。
      *
-     * <p>IDが未設定の場合は新規登録、設定済みの場合は更新として扱われる。</p>
-     *
-     * @param member 登録・更新する利用者エンティティ
+     * @param member 登録する利用者エンティティ
      * @return 保存後の利用者エンティティ（ID・タイムスタンプが設定済み）
      */
     Member save(Member member);
 
     /**
+     * IDを指定して利用者を更新する。
+     *
+     * <p>存在確認と更新を同一トランザクション内で行い、競合状態を防止する。
+     * 指定IDの利用者が存在しない場合は例外をスローする。</p>
+     *
+     * @param id 更新対象の利用者UUID
+     * @param member 更新データ
+     * @return 更新後の利用者エンティティ
+     * @throws com.example.CareDocWeb.exception.ResourceNotFoundException 指定IDの利用者が存在しない場合
+     */
+    Member update(UUID id, Member member);
+
+    /**
      * IDを指定して利用者を削除する。
      *
+     * <p>存在確認と削除を同一トランザクション内で行い、競合状態を防止する。
+     * 指定IDの利用者が存在しない場合は例外をスローする。</p>
+     *
      * @param id 削除対象の利用者UUID
+     * @throws com.example.CareDocWeb.exception.ResourceNotFoundException 指定IDの利用者が存在しない場合
      */
-    void deleteById(UUID id);
+    void delete(UUID id);
 }
