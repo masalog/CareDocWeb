@@ -228,13 +228,13 @@ class CommonSettingsControllerTest {
         // --- 異常系 ---
 
         @Test
-        @DisplayName("異常系: リクエストボディが空の場合、エラーを返す")
-        void returnsError_whenBodyIsEmpty() throws Exception {
+        @DisplayName("異常系: リクエストボディが空の場合、400を返す")
+        void returns400_whenBodyIsEmpty() throws Exception {
             // 実行 & 検証
             mockMvc.perform(put("/api/settings")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(""))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isBadRequest());
         }
 
         @Test
