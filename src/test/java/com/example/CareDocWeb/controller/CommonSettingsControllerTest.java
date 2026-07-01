@@ -138,15 +138,15 @@ class CommonSettingsControllerTest {
         // --- 異常系 ---
 
         @Test
-        @DisplayName("異常系: 共通設定が未登録の場合、500を返す")
-        void returns500_whenNotRegistered() throws Exception {
+        @DisplayName("異常系: 共通設定が未登録の場合、404を返す")
+        void returns404_whenNotRegistered() throws Exception {
             // 準備
             when(commonSettingsService.find())
-                    .thenThrow(new RuntimeException("共通設定が登録されていません"));
+                    .thenThrow(new com.example.CareDocWeb.exception.ResourceNotFoundException("共通設定が登録されていません"));
 
             // 実行 & 検証
             mockMvc.perform(get("/api/settings"))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isNotFound());
         }
 
         @Test
