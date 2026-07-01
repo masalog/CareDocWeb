@@ -468,11 +468,11 @@ class MemberServiceImplTest {
     }
 
     // ========================================
-    // deleteById
+    // delete
     // ========================================
 
     @Nested
-    @DisplayName("deleteById")
+    @DisplayName("delete")
     class DeleteById {
 
         // --- 正常系 ---
@@ -481,41 +481,46 @@ class MemberServiceImplTest {
         @DisplayName("正常系: 存在するIDを指定して削除する")
         void deletesSuccessfully_whenIdExists() {
             // 準備
+            when(memberRepository.findById(sampleId)).thenReturn(java.util.Optional.of(sampleMember));
             doNothing().when(memberRepository).deleteById(sampleId);
 
             // 実行
-            memberService.deleteById(sampleId);
+            memberService.delete(sampleId);
 
             // 検証
+            verify(memberRepository, times(1)).findById(sampleId);
             verify(memberRepository, times(1)).deleteById(sampleId);
         }
 
         @Test
-        @DisplayName("正常系: 削除後にリポジトリのdeleteByIdが1回だけ呼ばれる")
+        @DisplayName("正常系: findByIdとdeleteByIdが1回ずつ呼ばれる")
         void callsRepositoryExactlyOnce() {
             // 準備
+            when(memberRepository.findById(sampleId)).thenReturn(java.util.Optional.of(sampleMember));
             doNothing().when(memberRepository).deleteById(sampleId);
 
             // 実行
-            memberService.deleteById(sampleId);
+            memberService.delete(sampleId);
 
             // 検証
+            verify(memberRepository, times(1)).findById(sampleId);
             verify(memberRepository, times(1)).deleteById(sampleId);
-            verifyNoMoreInteractions(memberRepository);
         }
 
         // --- 境界値 ---
 
         @Test
-        @DisplayName("境界値: 存在しないIDを指定しても例外はスローされない")
-        void doesNotThrow_whenIdDoesNotExist() {
+        @DisplayName("異常系: 存在しないIDを指定した場合、ResourceNotFoundExceptionをスローする")
+        void throwsException_whenIdDoesNotExist() {
             // 準備
             UUID nonExistentId = UUID.randomUUID();
-            doNothing().when(memberRepository).deleteById(nonExistentId);
+            when(memberRepository.findById(nonExistentId)).thenReturn(java.util.Optional.empty());
 
             // 実行 & 検証
-            assertDoesNotThrow(() -> memberService.deleteById(nonExistentId));
-            verify(memberRepository, times(1)).deleteById(nonExistentId);
+            assertThrows(ResourceNotFoundException.class,
+                    () -> memberService.delete(nonExistentId));
+            verify(memberRepository, times(1)).findById(nonExistentId);
+            verify(memberRepository, never()).deleteById(any());
         }
 
         // --- 異常系 ---
@@ -524,25 +529,25 @@ class MemberServiceImplTest {
         @DisplayName("異常系: NULLのIDを渡した場合、リポジトリに委譲される")
         void throwsException_whenIdIsNull() {
             // 準備
-            doThrow(new IllegalArgumentException("IDがnullです"))
-                    .when(memberRepository).deleteById(null);
+            when(memberRepository.findById(null)).thenReturn(java.util.Optional.empty());
 
             // 実行 & 検証
-            assertThrows(IllegalArgumentException.class,
-                    () -> memberService.deleteById(null));
-            verify(memberRepository, times(1)).deleteById(null);
+            assertThrows(ResourceNotFoundException.class,
+                    () -> memberService.delete(null));
+            verify(memberRepository, times(1)).findById(null);
         }
 
         @Test
         @DisplayName("異常系: リポジトリが例外をスローした場合、そのまま伝播する")
         void propagatesException_whenRepositoryThrows() {
             // 準備
+            when(memberRepository.findById(sampleId)).thenReturn(java.util.Optional.of(sampleMember));
             doThrow(new RuntimeException("DB削除エラー"))
                     .when(memberRepository).deleteById(sampleId);
 
             // 実行 & 検証
             RuntimeException exception = assertThrows(RuntimeException.class,
-                    () -> memberService.deleteById(sampleId));
+                    () -> memberService.delete(sampleId));
             assertEquals("DB削除エラー", exception.getMessage());
         }
     }
