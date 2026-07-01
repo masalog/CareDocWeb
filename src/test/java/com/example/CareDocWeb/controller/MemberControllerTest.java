@@ -153,16 +153,16 @@ class MemberControllerTest {
         // --- 異常系 ---
 
         @Test
-        @DisplayName("異常系: 存在しないIDの場合、500を返す")
-        void returns500_whenNotFound() throws Exception {
+        @DisplayName("異常系: 存在しないIDの場合、404を返す")
+        void returns404_whenNotFound() throws Exception {
             // 準備
             UUID nonExistentId = UUID.randomUUID();
             when(memberService.findById(nonExistentId))
-                    .thenThrow(new RuntimeException("利用者が見つかりません: " + nonExistentId));
+                    .thenThrow(new com.example.CareDocWeb.exception.ResourceNotFoundException("利用者が見つかりません: " + nonExistentId));
 
             // 実行 & 検証
             mockMvc.perform(get("/api/members/{id}", nonExistentId))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isNotFound());
         }
 
         @Test
@@ -345,15 +345,15 @@ class MemberControllerTest {
         // --- 境界値 ---
 
         @Test
-        @DisplayName("境界値: 存在しないIDでも204を返す")
-        void returns204_whenIdDoesNotExist() throws Exception {
+        @DisplayName("異常系: 存在しないIDで削除しようとした場合、404を返す")
+        void returns404_whenIdDoesNotExist() throws Exception {
             // 準備
             UUID nonExistentId = UUID.randomUUID();
-            doNothing().when(memberService).deleteById(nonExistentId);
+            when(memberService.existsById(nonExistentId)).thenReturn(false);
 
             // 実行 & 検証
             mockMvc.perform(delete("/api/members/{id}", nonExistentId))
-                    .andExpect(status().isNoContent());
+                    .andExpect(status().isNotFound());
         }
 
         // --- 異常系 ---
