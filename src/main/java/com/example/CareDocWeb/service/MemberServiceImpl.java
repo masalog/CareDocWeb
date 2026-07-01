@@ -2,6 +2,7 @@ package com.example.CareDocWeb.service;
 
 import com.example.CareDocWeb.entity.Member;
 import com.example.CareDocWeb.repository.MemberRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,18 +22,10 @@ import java.util.UUID;
  * @see MemberRepository
  */
 @Service
+@RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
 
     private final MemberRepository memberRepository;
-
-    /**
-     * コンストラクタインジェクション。
-     *
-     * @param memberRepository 利用者リポジトリ
-     */
-    public MemberServiceImpl(MemberRepository memberRepository) {
-        this.memberRepository = memberRepository;
-    }
 
     /**
      * {@inheritDoc}
