@@ -2,6 +2,7 @@ package com.example.CareDocWeb.service;
 
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 
@@ -27,15 +28,6 @@ public class LayoutLoader {
             @SuppressWarnings("unchecked")
             Map<String, Map<String, Object>> fields = (Map<String, Map<String, Object>>) root.get("fields");
 
-        return fields.entrySet().stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        Map.Entry::getKey,
-                        e -> new FieldPosition(
-                                ((Number) e.getValue().get("x")).floatValue(),
-                                ((Number) e.getValue().get("y")).floatValue(),
-                                ((Number) e.getValue().get("fontSize")).floatValue()
-                        )
-                ));
             return fields.entrySet().stream()
                     .collect(java.util.stream.Collectors.toMap(
                             Map.Entry::getKey,
@@ -45,6 +37,9 @@ public class LayoutLoader {
                                     ((Number) e.getValue().get("fontSize")).floatValue()
                             )
                     ));
+        } catch (IOException ex) {
+            throw new IllegalStateException("座標YAMLファイルの読み込みに失敗しました", ex);
+        }
     }
 
     public record FieldPosition(float x, float y, float fontSize) {
