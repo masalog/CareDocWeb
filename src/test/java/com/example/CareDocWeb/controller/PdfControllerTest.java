@@ -1,0 +1,392 @@
+package com.example.CareDocWeb.controller;
+
+import com.example.CareDocWeb.dto.PdfGenerateRequest;
+import com.example.CareDocWeb.entity.CommonSettings;
+import com.example.CareDocWeb.entity.Member;
+import com.example.CareDocWeb.exception.ResourceNotFoundException;
+import com.example.CareDocWeb.service.CommonSettingsService;
+import com.example.CareDocWeb.service.MemberService;
+import com.example.CareDocWeb.service.PdfService;
+import tools.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+/**
+ * {@link PdfController} の統合テスト。
+ *
+ * <p>{@code @WebMvcTest} を使用し、HTTPリクエスト/レスポンスの観点から
+ * PDF生成エンドポイントの動作を検証する。</p>
+ */
+@WebMvcTest(PdfController.class)
+@DisplayName("POST /api/pdf/generate")
+class PdfControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private MemberService memberService;
+
+    @MockitoBean
+    private CommonSettingsService commonSettingsService;
+
+    @MockitoBean
+    private PdfService pdfService;
+
+    private final UUID sampleMemberId = UUID.fromString("d265e665-368a-44a9-9808-fe5c063bec44");
+
+    private Member createSampleMember() {
+        Member member = new Member();
+        member.setId(sampleMemberId);
+        member.setName("田中太郎");
+        member.setFurigana("タナカタロウ");
+        member.setCareLevel("要介護2");
+        return member;
+    }
+
+    private CommonSettings createSampleSettings() {
+        CommonSettings settings = new CommonSettings();
+        settings.setId(UUID.randomUUID());
+        settings.setFacilityName("中央介護センター");
+        return settings;
+    }
+
+    // ========================================
+    // 正常系
+    // ========================================
+
+    @Nested
+    @DisplayName("正常系")
+    class Normal {
+
+        @Test
+        @DisplayName("200を返しContent-TypeがPDFである")
+        void returns200_withPdfContentType() throws Exception {
+            // 準備
+            Member member = createSampleMember();
+            CommonSettings settings = createSampleSettings();
+            byte[] fakePdf = "%PDF-1.4 fake content".getBytes();
+
+            when(memberService.findById(sampleMemberId)).thenReturn(member);
+            when(commonSettingsService.find()).thenReturn(settings);
+            when(pdfService.generate(any(Member.class), any(CommonSettings.class), any(PdfGenerateRequest.class)))
+                    .thenReturn(fakePdf);
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, 2026, 7, 2, "状態悪化のため"
+            );
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                    .andExpect(header().string("Content-Disposition", "attachment; filename=output.pdf"));
+
+            verify(memberService, times(1)).findById(sampleMemberId);
+            verify(commonSettingsService, times(1)).find();
+            verify(pdfService, times(1)).generate(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("変更理由なし（null）でも200を返す")
+        void returns200_withoutChangeReason() throws Exception {
+            // 準備
+            Member member = createSampleMember();
+            CommonSettings settings = createSampleSettings();
+            byte[] fakePdf = "%PDF-1.4 fake".getBytes();
+
+            when(memberService.findById(sampleMemberId)).thenReturn(member);
+            when(commonSettingsService.find()).thenReturn(settings);
+            when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, 2026, 7, 2, null
+            );
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_PDF));
+        }
+
+        @Test
+        @DisplayName("レスポンスボディにPDFバイナリが含まれる")
+        void returnsBody_withPdfBytes() throws Exception {
+            // 準備
+            Member member = createSampleMember();
+            CommonSettings settings = createSampleSettings();
+            byte[] fakePdf = "%PDF-1.4 test content here".getBytes();
+
+            when(memberService.findById(sampleMemberId)).thenReturn(member);
+            when(commonSettingsService.find()).thenReturn(settings);
+            when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, 2026, 7, 2, null
+            );
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(content().bytes(fakePdf));
+        }
+    }
+
+    // ========================================
+    // 境界値
+    // ========================================
+
+    @Nested
+    @DisplayName("境界値")
+    class Boundary {
+
+        @Test
+        @DisplayName("変更理由が空文字でも200を返す")
+        void returns200_withEmptyChangeReason() throws Exception {
+            // 準備
+            Member member = createSampleMember();
+            CommonSettings settings = createSampleSettings();
+            byte[] fakePdf = "%PDF-1.4 empty reason".getBytes();
+
+            when(memberService.findById(sampleMemberId)).thenReturn(member);
+            when(commonSettingsService.find()).thenReturn(settings);
+            when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, 2026, 7, 2, ""
+            );
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_PDF));
+        }
+
+        @Test
+        @DisplayName("申請日が1月1日でも200を返す")
+        void returns200_withJanuary1st() throws Exception {
+            // 準備
+            Member member = createSampleMember();
+            CommonSettings settings = createSampleSettings();
+            byte[] fakePdf = "%PDF-1.4 jan1".getBytes();
+
+            when(memberService.findById(sampleMemberId)).thenReturn(member);
+            when(commonSettingsService.find()).thenReturn(settings);
+            when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, 2026, 1, 1, null
+            );
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("申請日が12月31日でも200を返す")
+        void returns200_withDecember31st() throws Exception {
+            // 準備
+            Member member = createSampleMember();
+            CommonSettings settings = createSampleSettings();
+            byte[] fakePdf = "%PDF-1.4 dec31".getBytes();
+
+            when(memberService.findById(sampleMemberId)).thenReturn(member);
+            when(commonSettingsService.find()).thenReturn(settings);
+            when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, 2026, 12, 31, null
+            );
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    // ========================================
+    // 異常系
+    // ========================================
+
+    @Nested
+    @DisplayName("異常系")
+    class Error {
+
+        @Test
+        @DisplayName("存在しないmemberIdで404を返す")
+        void returns404_whenMemberNotFound() throws Exception {
+            // 準備
+            UUID nonExistentId = UUID.randomUUID();
+            when(memberService.findById(nonExistentId))
+                    .thenThrow(new ResourceNotFoundException("利用者が見つかりません: " + nonExistentId));
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    nonExistentId, 2026, 7, 2, null
+            );
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("共通設定が未登録で404を返す")
+        void returns404_whenSettingsNotFound() throws Exception {
+            // 準備
+            Member member = createSampleMember();
+            when(memberService.findById(sampleMemberId)).thenReturn(member);
+            when(commonSettingsService.find())
+                    .thenThrow(new ResourceNotFoundException("共通設定が登録されていません"));
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, 2026, 7, 2, null
+            );
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("memberIdなしで400を返す")
+        void returns400_whenMemberIdMissing() throws Exception {
+            // 準備
+            String invalidJson = """
+                    {
+                        "applicationYear": 2026,
+                        "applicationMonth": 7,
+                        "applicationDay": 2
+                    }
+                    """;
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("applicationYearなしで400を返す")
+        void returns400_whenApplicationYearMissing() throws Exception {
+            // 準備
+            String invalidJson = String.format("""
+                    {
+                        "memberId": "%s",
+                        "applicationMonth": 7,
+                        "applicationDay": 2
+                    }
+                    """, sampleMemberId);
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("applicationMonthなしで400を返す")
+        void returns400_whenApplicationMonthMissing() throws Exception {
+            // 準備
+            String invalidJson = String.format("""
+                    {
+                        "memberId": "%s",
+                        "applicationYear": 2026,
+                        "applicationDay": 2
+                    }
+                    """, sampleMemberId);
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("applicationDayなしで400を返す")
+        void returns400_whenApplicationDayMissing() throws Exception {
+            // 準備
+            String invalidJson = String.format("""
+                    {
+                        "memberId": "%s",
+                        "applicationYear": 2026,
+                        "applicationMonth": 7
+                    }
+                    """, sampleMemberId);
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("リクエストボディが空の場合、エラーを返す")
+        void returnsError_whenBodyIsEmpty() throws Exception {
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(""))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("PDF生成中にサービスが例外をスローした場合、500を返す")
+        void returns500_whenPdfServiceThrows() throws Exception {
+            // 準備
+            Member member = createSampleMember();
+            CommonSettings settings = createSampleSettings();
+
+            when(memberService.findById(sampleMemberId)).thenReturn(member);
+            when(commonSettingsService.find()).thenReturn(settings);
+            when(pdfService.generate(any(), any(), any()))
+                    .thenThrow(new RuntimeException("PDF生成に失敗しました"));
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, 2026, 7, 2, null
+            );
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isInternalServerError());
+        }
+    }
+}
