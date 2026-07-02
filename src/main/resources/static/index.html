@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareDocWeb - 介護認定申請書 PDF生成</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>CareDocWeb</h1>
+        <p>介護認定申請書 PDF生成システム</p>
+        <a href="admin.html" class="admin-link">管理画面 →</a>
+    </header>
+
+    <main>
+        <section class="section">
+            <h2>申請書PDF生成</h2>
+            <form id="pdf-form">
+                <div class="form-group">
+                    <label for="member-select">利用者を選択</label>
+                    <select id="member-select" name="memberId" required>
+                        <option value="">-- 選択してください --</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="app-year">申請年</label>
+                        <input type="number" id="app-year" name="applicationYear" value="2026" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="app-month">申請月</label>
+                        <input type="number" id="app-month" name="applicationMonth" min="1" max="12" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="app-day">申請日</label>
+                        <input type="number" id="app-day" name="applicationDay" min="1" max="31" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="change-reason">変更更新理由（任意）</label>
+                    <input type="text" id="change-reason" name="changeReason" placeholder="例: 状態悪化のため">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="generatePdf()">PDF生成・ダウンロード</button>
+            </form>
+            <div id="pdf-message" class="message"></div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
