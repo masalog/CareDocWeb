@@ -64,6 +64,9 @@ public class DataInitializer {
             m1.setEndYear(2026);
             m1.setEndMonth(3);
             m1.setEndDay(31);
+            m1.setInstitutionYear(2024);
+            m1.setInstitutionMonth(10);
+            m1.setInstitutionDay(1);
             memberRepo.save(m1);
 
             // サンプル利用者2
@@ -84,6 +87,9 @@ public class DataInitializer {
             m2.setEndYear(2026);
             m2.setEndMonth(5);
             m2.setEndDay(31);
+            m2.setInstitutionYear(2025);
+            m2.setInstitutionMonth(3);
+            m2.setInstitutionDay(15);
             memberRepo.save(m2);
 
             // 共通設定（事業所全体で1レコード）

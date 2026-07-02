@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -46,6 +47,19 @@ public class GlobalExceptionHandler {
         logger.warn("リクエストボディの読み取りに失敗: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body("リクエストの形式が不正です");
+    }
+
+    /**
+     * バリデーションエラーの場合、400 Bad Requestを返す。
+     *
+     * @param ex 発生した例外
+     * @return 400ステータスとエラーメッセージ
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> handleValidationError(MethodArgumentNotValidException ex) {
+        logger.warn("バリデーションエラー: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body("入力値が不正です");
     }
 
     /**
