@@ -139,14 +139,14 @@ CareDocWeb/
 全79件パス（JUnit 5 + Mockito + MockMvc）
 
 | テストクラス | テスト数 | 対象 |
-|---|---|---|
-| CareDocWebApplicationTests | 1 | コンテキスト起動 |
-| MemberControllerTest | 18 | 利用者API（HTTP検証） |
-| CommonSettingsControllerTest | 10 | 共通設定API（HTTP検証） |
-| PdfControllerTest | 4 | PDF生成API（HTTP検証） |
-| MemberServiceImplTest | 25 | 利用者サービス（ロジック検証） |
-| CommonSettingsServiceImplTest | 16 | 共通設定サービス（ロジック検証） |
-| PdfServiceImplTest | 5 | PDF生成サービス（バイナリ生成検証） |
+|---|------|---|
+| CareDocWebApplicationTests | 1    | コンテキスト起動 |
+| MemberControllerTest | 18   | 利用者API（HTTP検証） |
+| CommonSettingsControllerTest | 10   | 共通設定API（HTTP検証） |
+| PdfControllerTest | 14   | PDF生成API（HTTP検証） |
+| MemberServiceImplTest | 25   | 利用者サービス（ロジック検証） |
+| CommonSettingsServiceImplTest | 16   | 共通設定サービス（ロジック検証） |
+| PdfServiceImplTest | 19   | PDF生成サービス（バイナリ生成検証） |
 
 ```powershell
 mvn clean test
