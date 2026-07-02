@@ -6,6 +6,8 @@ import com.amazonaws.serverless.proxy.model.HttpApiV2ProxyRequest;
 import com.amazonaws.serverless.proxy.spring.SpringBootLambdaContainerHandler;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,13 +24,14 @@ import java.io.OutputStream;
  */
 public class StreamLambdaHandler implements RequestStreamHandler {
 
+    private static final Logger logger = LoggerFactory.getLogger(StreamLambdaHandler.class);
     private static final SpringBootLambdaContainerHandler<HttpApiV2ProxyRequest, AwsProxyResponse> handler;
 
     static {
         try {
             handler = SpringBootLambdaContainerHandler.getHttpApiV2ProxyHandler(CareDocWebApplication.class);
         } catch (ContainerInitializationException e) {
-            e.printStackTrace();
+            logger.error("Spring Boot の初期化に失敗しました", e);
             throw new RuntimeException("Spring Boot の初期化に失敗しました", e);
         }
     }
