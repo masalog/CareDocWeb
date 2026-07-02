@@ -17,10 +17,11 @@ PDF に転記して作成するための Web アプリケーションです。<b
 | 項目 | 技術 |
 |------|------|
 | フロントエンド | HTML + htmx + CSS（S3 ホスティング） |
-| バックエンド | Java 21 + Spring Boot 4.1.0（HTML断片を返すAPI） |
-| DB | Supabase（PostgreSQL） |
+| バックエンド | Java 21 + Spring Boot 4.1.0 |
+| DB | Supabase（PostgreSQL） / H2（Phase 1 ローカル） |
 | ORM | Spring Data JPA |
-| PDF生成 | Apache PDFBox（既存ロジック流用） |
+| PDF生成 | Apache PDFBox 3.0.4 |
+| テスト | JUnit 5 + Mockito + MockMvc |
 | インフラ | AWS S3（フロント）+ EC2（API） |
 | IDE | IntelliJ IDEA Community Edition |
 | ビルド | Maven |
@@ -42,16 +43,58 @@ CareDocWeb/
 ├── docs/
 │   ├── CareDocWeb 要件定義書.md
 │   ├── CareDocWeb API設計書.md
-│   └── CareDocWeb DB設計書.md
+│   ├── CareDocWeb DB設計書.md
+│   └── CareDocWeb PDF生成サービス実装方針.md
 ├── src/
 │   ├── main/
 │   │   ├── java/com/example/CareDocWeb/
-│   │   │   └── CareDocWebApplication.java
+│   │   │   ├── CareDocWebApplication.java
+│   │   │   ├── config/
+│   │   │   │   └── DataInitializer.java
+│   │   │   ├── controller/
+│   │   │   │   ├── MemberController.java
+│   │   │   │   ├── CommonSettingsController.java
+│   │   │   │   └── PdfController.java
+│   │   │   ├── dto/
+│   │   │   │   └── PdfGenerateRequest.java
+│   │   │   ├── entity/
+│   │   │   │   ├── Member.java
+│   │   │   │   └── CommonSettings.java
+│   │   │   ├── exception/
+│   │   │   │   ├── GlobalExceptionHandler.java
+│   │   │   │   └── ResourceNotFoundException.java
+│   │   │   ├── repository/
+│   │   │   │   ├── MemberRepository.java
+│   │   │   │   └── CommonSettingsRepository.java
+│   │   │   └── service/
+│   │   │       ├── MemberService.java
+│   │   │       ├── MemberServiceImpl.java
+│   │   │       ├── CommonSettingsService.java
+│   │   │       ├── CommonSettingsServiceImpl.java
+│   │   │       ├── PdfService.java
+│   │   │       ├── PdfServiceImpl.java
+│   │   │       └── LayoutLoader.java
 │   │   └── resources/
 │   │       ├── application.yaml
-│   │       ├── static/
+│   │       ├── fonts/
+│   │       │   └── NotoSansJP-Regular.ttf
+│   │       ├── positions/
+│   │       │   └── converted_positions.yaml
 │   │       └── templates/
+│   │           └── template.pdf
 │   └── test/
+│       ├── java/com/example/CareDocWeb/
+│       │   ├── CareDocWebApplicationTests.java
+│       │   ├── controller/
+│       │   │   ├── MemberControllerTest.java
+│       │   │   ├── CommonSettingsControllerTest.java
+│       │   │   └── PdfControllerTest.java
+│       │   └── service/
+│       │       ├── MemberServiceImplTest.java
+│       │       ├── CommonSettingsServiceImplTest.java
+│       │       └── PdfServiceImplTest.java
+│       └── resources/
+│           └── application.yaml
 ├── pom.xml
 ├── mvnw / mvnw.cmd
 └── README.md
@@ -61,26 +104,26 @@ CareDocWeb/
 
 ### 利用者
 
-```
-GET    /api/members          利用者一覧のHTML断片を返す
-GET    /api/members/{id}     利用者詳細のHTML断片を返す
-POST   /api/members          利用者を登録
-PUT    /api/members/{id}     利用者を更新
-DELETE /api/members/{id}     利用者を削除
-```
+| メソッド | パス | ステータス | 機能 |
+|---------|------|-----------|------|
+| GET | /api/members | 200 | 利用者一覧取得 |
+| GET | /api/members/{id} | 200 / 404 | 利用者詳細取得 |
+| POST | /api/members | 201 | 利用者登録 |
+| PUT | /api/members/{id} | 200 / 404 | 利用者更新 |
+| DELETE | /api/members/{id} | 204 / 404 | 利用者削除 |
 
 ### 共通データ
 
-```
-GET    /api/settings         共通データのHTML断片を返す
-PUT    /api/settings         共通データを更新
-```
+| メソッド | パス | ステータス | 機能 |
+|---------|------|-----------|------|
+| GET | /api/settings | 200 / 404 | 共通設定取得 |
+| PUT | /api/settings | 200 | 共通設定更新 |
 
 ### PDF生成
 
-```
-POST   /api/pdf/generate     PDFを生成してダウンロード
-```
+| メソッド | パス | ステータス | 機能 |
+|---------|------|-----------|------|
+| POST | /api/pdf/generate | 200 (application/pdf) | PDF生成・ダウンロード |
 
 ## 🗄 DBテーブル
 
@@ -91,13 +134,31 @@ POST   /api/pdf/generate     PDFを生成してダウンロード
 
 ※ 詳細は [DB設計書](docs/CareDocWeb%20DB設計書.md) を参照
 
+## 🧪 テスト
+
+全79件パス（JUnit 5 + Mockito + MockMvc）
+
+| テストクラス | テスト数 | 対象 |
+|---|---|---|
+| CareDocWebApplicationTests | 1 | コンテキスト起動 |
+| MemberControllerTest | 18 | 利用者API（HTTP検証） |
+| CommonSettingsControllerTest | 10 | 共通設定API（HTTP検証） |
+| PdfControllerTest | 4 | PDF生成API（HTTP検証） |
+| MemberServiceImplTest | 25 | 利用者サービス（ロジック検証） |
+| CommonSettingsServiceImplTest | 16 | 共通設定サービス（ロジック検証） |
+| PdfServiceImplTest | 5 | PDF生成サービス（バイナリ生成検証） |
+
+```powershell
+mvn clean test
+```
+
 ## 🚀 開発フェーズ
 
-| Phase | 内容 |
-|-------|------|
-| 1 | 利用者選択 → PDF生成（インメモリデータ, 認証なし, ローカル実行） |
-| 2 | CRUD + Supabase接続 + S3/EC2デプロイ |
-| 3 | 認証（Supabase Auth）, プレビュー, CI/CD |
+| Phase | 内容 | 状態 |
+|-------|------|------|
+| 1 | 利用者選択 → PDF生成（インメモリDB, 認証なし, ローカル実行） | ✅ 完了 |
+| 2 | CRUD + Supabase接続 + S3/EC2デプロイ | ⬜ |
+| 3 | 認証（Supabase Auth）, プレビュー, CI/CD | ⬜ |
 
 ## 🏗 ビルド・実行方法
 
@@ -113,7 +174,24 @@ mvn clean package
 mvn spring-boot:run
 ```
 
-アプリ起動後、`http://localhost:8080` にアクセスしてください。
+アプリ起動後：
+- `http://localhost:8080/api/members` — 利用者一覧（JSON）
+- `http://localhost:8080/h2-console` — H2コンソール（JDBC URL: `jdbc:h2:mem:caredoc`）
+
+### PDF生成の動作確認
+
+```powershell
+# 利用者一覧からIDを取得
+(Invoke-WebRequest http://localhost:8080/api/members -UseBasicParsing).Content
+
+# PDF生成
+Invoke-WebRequest -Uri "http://localhost:8080/api/pdf/generate" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"memberId":"取得したUUID","applicationYear":2026,"applicationMonth":7,"applicationDay":2}' `
+  -OutFile "output.pdf" `
+  -UseBasicParsing
+```
 
 ## 💰 運用コスト（見込み）
 
@@ -129,6 +207,6 @@ mvn spring-boot:run
      なお、本書類の利用により生じた損害等について、作成者は一切の責任を負いません。
 
 ※2．医療保険と特定疾病名の項目は、第2号被保険者向けの記載欄で、ユースケースが少ない事から、<br>
-　　 現時点では自動転記の対象としておりません。
+   現時点では自動転記の対象としておりません。
 
 ※3．個人番号は、現時点では記載が求められないことが多いため、自動転記の対象としていません。
