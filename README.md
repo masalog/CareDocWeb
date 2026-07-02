@@ -18,11 +18,12 @@ PDF に転記して作成するための Web アプリケーションです。<b
 |------|------|
 | フロントエンド | HTML + htmx + CSS（S3 ホスティング） |
 | バックエンド | Java 21 + Spring Boot 4.1.0 |
-| DB | Supabase（PostgreSQL） / H2（Phase 1 ローカル） |
+| DB | Supabase（PostgreSQL） / H2（ローカル開発用） |
 | ORM | Spring Data JPA |
 | PDF生成 | Apache PDFBox 3.0.4 |
 | テスト | JUnit 5 + Mockito + MockMvc |
-| インフラ | AWS S3（フロント）+ EC2（API） |
+| インフラ | AWS Lambda（SnapStart）+ API Gateway + S3 |
+| IaC | AWS CDK |
 | IDE | IntelliJ IDEA Community Edition |
 | ビルド | Maven |
 
@@ -31,7 +32,9 @@ PDF に転記して作成するための Web アプリケーションです。<b
 ```
 ブラウザ → S3（HTML + htmx + CSS）
               ↓ htmx リクエスト
-           EC2（Spring Boot API）
+           API Gateway（HTTP API）
+              ↓
+           Lambda（Spring Boot + SnapStart）
               ↓ JPA
            Supabase（PostgreSQL）
 ```
@@ -49,6 +52,7 @@ CareDocWeb/
 │   ├── main/
 │   │   ├── java/com/example/CareDocWeb/
 │   │   │   ├── CareDocWebApplication.java
+│   │   │   ├── StreamLambdaHandler.java
 │   │   │   ├── config/
 │   │   │   │   └── DataInitializer.java
 │   │   │   ├── controller/
@@ -76,6 +80,7 @@ CareDocWeb/
 │   │   │       └── LayoutLoader.java
 │   │   └── resources/
 │   │       ├── application.yaml
+│   │       ├── application-local.yaml
 │   │       ├── fonts/
 │   │       │   └── NotoSansJP-Regular.ttf
 │   │       ├── positions/
@@ -136,17 +141,17 @@ CareDocWeb/
 
 ## 🧪 テスト
 
-全79件パス（JUnit 5 + Mockito + MockMvc）
+全93件パス（JUnit 5 + Mockito + MockMvc）
 
 | テストクラス | テスト数 | 対象 |
-|---|------|---|
-| CareDocWebApplicationTests | 1    | コンテキスト起動 |
-| MemberControllerTest | 18   | 利用者API（HTTP検証） |
-| CommonSettingsControllerTest | 10   | 共通設定API（HTTP検証） |
-| PdfControllerTest | 14   | PDF生成API（HTTP検証） |
-| MemberServiceImplTest | 25   | 利用者サービス（ロジック検証） |
-| CommonSettingsServiceImplTest | 16   | 共通設定サービス（ロジック検証） |
-| PdfServiceImplTest | 19   | PDF生成サービス（バイナリ生成検証） |
+|---|---|---|
+| CareDocWebApplicationTests | 1 | コンテキスト起動 |
+| MemberControllerTest | 18 | 利用者API（HTTP検証） |
+| CommonSettingsControllerTest | 10 | 共通設定API（HTTP検証） |
+| PdfControllerTest | 14 | PDF生成API（HTTP検証） |
+| MemberServiceImplTest | 25 | 利用者サービス（ロジック検証） |
+| CommonSettingsServiceImplTest | 16 | 共通設定サービス（ロジック検証） |
+| PdfServiceImplTest | 19 | PDF生成サービス（バイナリ生成検証） |
 
 ```powershell
 mvn clean test
@@ -157,26 +162,47 @@ mvn clean test
 | Phase | 内容 | 状態 |
 |-------|------|------|
 | 1 | 利用者選択 → PDF生成（インメモリDB, 認証なし, ローカル実行） | ✅ 完了 |
-| 2 | CRUD + Supabase接続 + S3/EC2デプロイ | ⬜ |
-| 3 | 認証（Supabase Auth）, プレビュー, CI/CD | ⬜ |
+| 2 | Supabase接続 + Lambda SnapStart デプロイ | 🔧 進行中 |
+| 3 | 認証（Supabase Auth）, フロントエンド, CI/CD | ⬜ |
 
 ## 🏗 ビルド・実行方法
 
 ※ JAVA_HOME には Java 21 JDK のパス設定が必要です
 
+### ローカル実行（H2インメモリDB）
+
 ```powershell
 cd C:\Users\dghy1\IdeaProjects\CareDocWeb
 
-# ビルド
-mvn clean package
-
-# 実行
 mvn spring-boot:run
 ```
 
+デフォルトで `local` プロファイル（H2）が適用されます。
+
+### Supabase接続（本番DB）
+
+```powershell
+$env:DB_URL = "jdbc:postgresql://your-supabase-host:5432/postgres?sslmode=require"
+$env:DB_USERNAME = "postgres.your-project-id"
+$env:DB_PASSWORD=[REDACTED_PASSWORD]
+$env:SPRING_PROFILES_ACTIVE = "prod"
+
+mvn spring-boot:run
+```
+
+### Lambda用ビルド
+
+```powershell
+mvn clean package -DskipTests
+```
+
+`target/CareDocWeb-0.0.1-SNAPSHOT.jar` が生成されます。
+
+### 動作確認
+
 アプリ起動後：
 - `http://localhost:8080/api/members` — 利用者一覧（JSON）
-- `http://localhost:8080/h2-console` — H2コンソール（JDBC URL: `jdbc:h2:mem:caredoc`）
+- `http://localhost:8080/h2-console` — H2コンソール（localプロファイルのみ）
 
 ### PDF生成の動作確認
 
@@ -193,13 +219,34 @@ Invoke-WebRequest -Uri "http://localhost:8080/api/pdf/generate" `
   -UseBasicParsing
 ```
 
+## ☁️ インフラ構成（AWS）
+
+| リソース | 用途 |
+|----------|------|
+| Lambda（Java 21 + SnapStart） | Spring Boot API 実行 |
+| API Gateway（HTTP API） | HTTPリクエストをLambdaに転送 |
+| S3 | フロントエンド静的ホスティング |
+| Supabase | PostgreSQL データベース |
+
+### Lambda設定
+
+| 項目 | 値 |
+|------|-----|
+| ハンドラー | `com.example.CareDocWeb.StreamLambdaHandler::handleRequest` |
+| ランタイム | Java 21 |
+| SnapStart | PublishedVersions |
+| メモリ | 512MB |
+| タイムアウト | 30秒 |
+
 ## 💰 運用コスト（見込み）
 
 | 項目 | 月額 |
 |------|------|
-| Supabase（Free） | $0 |
+| Lambda（無料枠: 100万リクエスト/月） | ほぼ $0 |
+| API Gateway | ほぼ $0 |
 | S3（静的ホスティング） | ほぼ $0 |
-| EC2（t3.micro, 無料枠後） | $8〜15 |
+| Supabase（Free） | $0 |
+| **合計** | **ほぼ無料** |
 
 ## 🧑‍💻 留意点
 ※1. 本テンプレートは、東京都中央区が公開している介護認定申請書の様式を参考に作成したものです。<br>
