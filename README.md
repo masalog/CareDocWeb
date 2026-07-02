@@ -16,7 +16,7 @@ PDF に転記して作成するための Web アプリケーションです。<b
 
 | 項目 | 技術 |
 |------|------|
-| フロントエンド | HTML + htmx + CSS（S3 ホスティング） |
+| フロントエンド | HTML + CSS + JavaScript（S3 ホスティング） |
 | バックエンド | Java 21 + Spring Boot 4.1.0 |
 | DB | Supabase（PostgreSQL） / H2（ローカル開発用） |
 | ORM | Spring Data JPA |
@@ -30,8 +30,8 @@ PDF に転記して作成するための Web アプリケーションです。<b
 ## 📐 システム構成
 
 ```
-ブラウザ → S3（HTML + htmx + CSS）
-              ↓ htmx リクエスト
+ブラウザ → S3（HTML + CSS + JavaScript）
+              ↓ fetch API リクエスト
            API Gateway（HTTP API）
               ↓
            Lambda（Spring Boot + SnapStart）
@@ -81,6 +81,11 @@ CareDocWeb/
 │   │   └── resources/
 │   │       ├── application.yaml
 │   │       ├── application-local.yaml
+│   │       ├── static/
+│   │       │   ├── index.html        ← PDF生成（公開ページ）
+│   │       │   ├── admin.html        ← 管理画面（利用者管理・共通設定）
+│   │       │   ├── style.css
+│   │       │   └── app.js
 │   │       ├── fonts/
 │   │       │   └── NotoSansJP-Regular.ttf
 │   │       ├── positions/
