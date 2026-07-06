@@ -11,10 +11,7 @@ name: Lambda ウォームアップ
 
 on:
   schedule:
-    # 5分ごとに実行（GitHub Actions cron の最短間隔。Lambda のアイドル回収
-    # （5〜15分の幅がある）より早く叩き続けることで、ウォーム維持をより確実にする）
     - cron: "*/5 * * * *"
-  # 手動実行も可能にしておく（動作確認用）
   workflow_dispatch:
 
 jobs:
