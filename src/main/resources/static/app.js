@@ -39,12 +39,79 @@ function loadMemberSelect() {
         });
 }
 
+// ========================================
+// 申請年月日セレクトの制御
+// ========================================
+
 /**
- * PDF生成・ダウンロード処理
+ * 申請年・月・日のドロップダウンを初期化する。
+ * - 申請年：当年・翌年の2択
+ * - 申請月：1〜12月
+ * - 申請日：選択中の年月に応じて末日（28/29/30/31）を動的生成
+ * ページ読み込み時に一度だけ呼ぶ。
+ */
+function initDateSelects() {
+    const yearSelect = document.getElementById('app-year');
+    const monthSelect = document.getElementById('app-month');
+    const daySelect = document.getElementById('app-day');
+    if (!yearSelect || !monthSelect || !daySelect) return;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    // 申請年：当年・翌年
+    yearSelect.innerHTML = '';
+    [currentYear, currentYear + 1].forEach(y => {
+        yearSelect.innerHTML += `<option value="${y}">${y}年</option>`;
+    });
+
+    // 申請月：1〜12（初期値は当月）
+    monthSelect.innerHTML = '';
+    for (let m = 1; m <= 12; m++) {
+        monthSelect.innerHTML += `<option value="${m}">${m}月</option>`;
+    }
+    monthSelect.value = now.getMonth() + 1;
+
+    // 年・月が変わったら日の選択肢を再生成
+    yearSelect.addEventListener('change', updateDayOptions);
+    monthSelect.addEventListener('change', updateDayOptions);
+
+    // 初期表示：日の選択肢を生成（初期値は当日）
+    updateDayOptions();
+    daySelect.value = now.getDate();
+}
+
+/**
+ * 選択中の年・月に応じて、申請日の選択肢を末日まで動的生成する。
+ * new Date(year, month, 0).getDate() でその月の末日が求まる（うるう年も自動対応）。
+ * 再生成前の選択日が新しい末日を超える場合は末日に丸める。
+ */
+function updateDayOptions() {
+    const yearSelect = document.getElementById('app-year');
+    const monthSelect = document.getElementById('app-month');
+    const daySelect = document.getElementById('app-day');
+
+    const year = parseInt(yearSelect.value);
+    const month = parseInt(monthSelect.value);
+    const lastDay = new Date(year, month, 0).getDate(); // その月の末日
+
+    const prevDay = parseInt(daySelect.value) || 1;
+    daySelect.innerHTML = '';
+    for (let d = 1; d <= lastDay; d++) {
+        daySelect.innerHTML += `<option value="${d}">${d}日</option>`;
+    }
+    // 以前の選択日を可能な範囲で維持（末日超過時は末日に丸める）
+    daySelect.value = Math.min(prevDay, lastDay);
+}
+
+// ページ読み込み時に日付セレクトを初期化
+document.addEventListener('DOMContentLoaded', initDateSelects);
+
+/** PDF生成・ダウンロード処理
  * 1. バリデーション（利用者選択・年月日入力）
  * 2. POST /api/pdf/generate にJSONリクエスト送信
  * 3. レスポンスのblobをダウンロードリンクとして生成
- */
+*/
 function generatePdf() {
     const memberId = document.getElementById('member-select').value;
     const applicationYear = parseInt(document.getElementById('app-year').value);
