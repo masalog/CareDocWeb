@@ -159,6 +159,7 @@
 							<artifactSet>
 								<excludes>
 									<exclude>org.apache.tomcat.embed:*</exclude>
+									<exclude>org.springframework.boot:spring-boot-devtools</exclude>
 								</excludes>
 							</artifactSet>
 						</configuration>
