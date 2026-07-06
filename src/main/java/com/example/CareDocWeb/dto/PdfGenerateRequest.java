@@ -4,6 +4,9 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import java.time.DateTimeException;
+import java.time.Year;
+import java.time.YearMonth;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -59,13 +62,23 @@ public class PdfGenerateRequest {
     @AssertTrue(message = "申請年月日が正しくありません（存在しない日付です）")
     public boolean isValidDate() {
         if (applicationYear == null || applicationMonth == null || applicationDay == null) {
-            return true; // null は @NotNull が担当する
+            return true; // null は @NotNull が担当
         }
+
         if (applicationMonth < 1 || applicationMonth > 12 || applicationDay < 1 || applicationDay > 31) {
-            return true; // 範囲は @Min/@Max が担当する（ここで二重にエラーを出さない）
+            return true; // 範囲は @Min/@Max が担当
         }
-        // その年月に指定の日が存在するかを判定（うるう年も自動考慮）。
-        // YearMonth.isValidDay は boolean を返すため、戻り値をそのまま使える。
-        return java.time.YearMonth.of(applicationYear, applicationMonth).isValidDay(applicationDay);
+
+        // 年の範囲チェック（Year.MIN_VALUE〜Year.MAX_VALUE）
+        if (applicationYear < Year.MIN_VALUE || applicationYear > Year.MAX_VALUE) {
+            return false; // ここで弾く
+        }
+
+        try {
+            return YearMonth.of(applicationYear, applicationMonth).isValidDay(applicationDay);
+        } catch (DateTimeException e) {
+            return false; // 例外が出たら false を返す
+        }
     }
+
 }
