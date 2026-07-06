@@ -66,6 +66,12 @@
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>ssm</artifactId>
 			<version>2.28.11</version>
+			<exclusions>
+				<!-- 非同期HTTPクライアント（Netty）は使わないので除外してjarを軽量化。 -->
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>netty-nio-client</artifactId>
+				</exclusion>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
