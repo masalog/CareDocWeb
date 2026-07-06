@@ -64,11 +64,8 @@ public class PdfGenerateRequest {
         if (applicationMonth < 1 || applicationMonth > 12 || applicationDay < 1 || applicationDay > 31) {
             return true; // 範囲は @Min/@Max が担当する（ここで二重にエラーを出さない）
         }
-        try {
-            LocalDate.of(applicationYear, applicationMonth, applicationDay);
-            return true;
-        } catch (java.time.DateTimeException e) {
-            return false;
-        }
+        // その年月に指定の日が存在するかを判定（うるう年も自動考慮）。
+        // YearMonth.isValidDay は boolean を返すため、戻り値をそのまま使える。
+        return java.time.YearMonth.of(applicationYear, applicationMonth).isValidDay(applicationDay);
     }
 }
