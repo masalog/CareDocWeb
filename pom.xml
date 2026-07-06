@@ -61,6 +61,11 @@
 			<version>3.0.0</version>
 		</dependency>
 
+		<!-- AWS SDK for Java v2 - SSM Parameter Store（本番でDBパスワードを取得） -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>ssm</artifactId>
+			<version>2.28.11</version>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
