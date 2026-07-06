@@ -3,8 +3,9 @@
 ## 概要
 
 ```
-Spring Boot が HTML断片を返す API。
-htmx からのリクエストに対し、HTMLパーツを返却する。
+Java 21 + Spring Boot 4.x による REST API（Lambda + API Gateway で稼働）。
+利用者・共通データの取得/更新は JSON を返す。
+フロントエンド（バニラ JavaScript / app.js）が JSON を受け取り、DOM を組み立てる。
 PDF生成時はバイナリ（application/pdf）を返す。
 ```
 
@@ -15,18 +16,18 @@ PDF生成時はバイナリ（application/pdf）を返す。
 ### 利用者
 
 ```
-GET    /api/members          利用者一覧のHTML断片を返す
-GET    /api/members/{id}     利用者詳細のHTML断片を返す
-POST   /api/members          利用者を登録
-PUT    /api/members/{id}     利用者を更新
+GET    /api/members          利用者一覧を JSON 配列で返す
+GET    /api/members/{id}     利用者詳細を JSON で返す
+POST   /api/members          利用者を登録（登録結果を JSON で返す）
+PUT    /api/members/{id}     利用者を更新（更新結果を JSON で返す）
 DELETE /api/members/{id}     利用者を削除
 ```
 
 ### 共通データ
 
 ```
-GET    /api/settings         共通データのHTML断片を返す
-PUT    /api/settings         共通データを更新
+GET    /api/settings         共通データを JSON で返す
+PUT    /api/settings         共通データを更新（更新結果を JSON で返す）
 ```
 
 ### PDF生成
@@ -51,9 +52,9 @@ POST   /api/pdf/generate     PDFを生成してダウンロード
 ## レスポンス形式
 
 ```
-通常のリクエスト → Content-Type: text/html（HTML断片）
+通常のリクエスト → Content-Type: application/json（JSON）
 PDF生成        → Content-Type: application/pdf（バイナリ）
-エラー時       → HTTP ステータスコード + エラーメッセージHTML
+エラー時       → HTTP ステータスコード（フロントの app.js が res.ok で判定しメッセージ表示）
 ```
 
 ---
@@ -70,12 +71,16 @@ PDF生成        → Content-Type: application/pdf（バイナリ）
 
 ---
 
-## CORS設定
+## オリジン設定（CloudFront統合により CORS 不要）
 
 ```
-S3（フロント）からEC2（API）へリクエストするため、
-Spring Boot側でCORSを許可する必要がある。
+CloudFront を唯一の公開エンドポイントとし、静的配信（S3）と
+API（API Gateway → Lambda）を同一ドメイン配下に統合する。
 
-許可オリジン: S3のホスティングURL
-許可メソッド: GET, POST, PUT, DELETE
+フロントとAPIが同一オリジン（CloudFrontのドメイン）となるため、
+ブラウザからのAPI呼び出しはクロスオリジンにならず、CORS設定は不要。
+
+- フロント（app.js）は相対パス `/api/...` でAPIを呼ぶ
+- CloudFront が `/api/*` を API Gateway（prod ステージ）へルーティング
+- `/*` は S3 へルーティング（OAC 経由・S3直接アクセスは遮断）
 ```
