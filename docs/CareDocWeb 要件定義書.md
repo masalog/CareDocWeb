@@ -28,12 +28,12 @@
 ```
 | 項目             | 技術                                      |
 |------------------|-------------------------------------------|
-| フロントエンド   | HTML + htmx + CSS（S3 ホスティング）       |
-| バックエンド     | Kotlin + Spring Boot（HTML断片を返すAPI）  |
+| フロントエンド   | HTML + バニラ JavaScript + CSS（S3 ホスティング） |
+| バックエンド     | Java 21 + Spring Boot 4.x（JSON を返す REST API） |
 | DB               | Supabase（PostgreSQL）                    |
 | ORM              | Spring Data JPA                           |
 | PDF生成          | Apache PDFBox（既存ロジック流用）          |
-| インフラ         | AWS S3（フロント）+ EC2（API）            |
+| インフラ         | AWS S3 + CloudFront（フロント）+ Lambda + API Gateway（API）  |
 ```
 
 ---
@@ -41,11 +41,13 @@
 ## システム構成
 
 ```
-ブラウザ → S3（HTML + htmx + CSS）
-              ↓ htmx リクエスト
-           EC2（Spring Boot API）
-              ↓ JPA
-           Supabase（PostgreSQL）
+ブラウザ → CloudFront（唯一の公開エンドポイント）
+              ├─ /*     → S3（HTML + バニラ JavaScript + CSS）
+              └─ /api/* → API Gateway → Lambda（Spring Boot API）
+                                            ↓ JPA
+                                         Supabase（PostgreSQL）
+                                            ↑ SSM Parameter Store
+                                         （DB接続情報を実行時取得）
 ```
 
 ---
@@ -71,9 +73,9 @@ common_settings（共通）
 ```
 | Phase | 内容                                                  |
 |-------|-------------------------------------------------------|
-| 1     | 利用者選択 → PDF生成（インメモリデータ, 認証なし, ローカル実行） |
-| 2     | CRUD + Supabase接続 + S3/EC2デプロイ                   |
-| 3     | 認証（Supabase Auth）, プレビュー, CI/CD              |
+| 1     | 利用者選択 → PDF生成（インメモリデータ, 認証なし, ローカル実行）✅ |
+| 2     | CRUD + Supabase接続 ✅ / S3+CloudFrontデプロイ ✅ / Lambda+API Gatewayデプロイ ✅ |
+| 3     | CloudFront統合（/api/* ルーティング）✅ / PDF等バイナリ配信（binaryMediaTypes）✅ → 認証（Supabase Auth）, プレビュー, CI/CD |
 ```
 
 ---
@@ -84,6 +86,6 @@ common_settings（共通）
 | 項目                        | 月額     |
 |-----------------------------|----------|
 | Supabase（Free）            | $0       |
-| S3（静的ホスティング）       | ほぼ $0  |
-| EC2（t3.micro, 無料枠後）   | $8〜15   |
+| S3 + CloudFront（静的ホスティング + CDN） | ほぼ $0（低トラフィック時） |
+| Lambda + API Gateway        | ほぼ $0（無料枠内・低トラフィック時） |
 ```

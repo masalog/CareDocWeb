@@ -1,8 +1,8 @@
 package com.example.CareDocWeb;
 
 import com.amazonaws.serverless.exceptions.ContainerInitializationException;
+import com.amazonaws.serverless.proxy.model.AwsProxyRequest;
 import com.amazonaws.serverless.proxy.model.AwsProxyResponse;
-import com.amazonaws.serverless.proxy.model.HttpApiV2ProxyRequest;
 import com.amazonaws.serverless.proxy.spring.SpringBootLambdaContainerHandler;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
@@ -17,7 +17,10 @@ import java.io.OutputStream;
  * AWS Lambda ハンドラー。
  *
  * <p>Spring Boot アプリケーションを AWS Lambda 上で動作させるためのブリッジクラス。
- * API Gateway（HTTP API）からのリクエストを受け取り、Spring Boot のコントローラーに転送する。</p>
+ * API Gateway（REST API）からのリクエストを受け取り、Spring Boot のコントローラーに転送する。</p>
+ *
+ * <p>API Gateway は REST API（LambdaRestApi）を使用しているため、リクエスト形式は
+ * AWS Proxy（v1）形式。getAwsProxyHandler で受け取る。</p>
  *
  * <p>SnapStart により、staticブロックで初期化されたSpringコンテキストが
  * スナップショットとして保存され、コールドスタートが高速化される。</p>
@@ -25,11 +28,11 @@ import java.io.OutputStream;
 public class StreamLambdaHandler implements RequestStreamHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(StreamLambdaHandler.class);
-    private static final SpringBootLambdaContainerHandler<HttpApiV2ProxyRequest, AwsProxyResponse> handler;
+    private static final SpringBootLambdaContainerHandler<AwsProxyRequest, AwsProxyResponse> handler;
 
     static {
         try {
-            handler = SpringBootLambdaContainerHandler.getHttpApiV2ProxyHandler(CareDocWebApplication.class);
+            handler = SpringBootLambdaContainerHandler.getAwsProxyHandler(CareDocWebApplication.class);
         } catch (ContainerInitializationException e) {
             logger.error("Spring Boot の初期化に失敗しました", e);
             throw new RuntimeException("Spring Boot の初期化に失敗しました", e);

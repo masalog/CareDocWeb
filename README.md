@@ -22,22 +22,30 @@ PDF に転記して作成するための Web アプリケーションです。<b
 | ORM | Spring Data JPA |
 | PDF生成 | Apache PDFBox 3.0.4 |
 | テスト | JUnit 5 + Mockito + MockMvc |
-| インフラ | AWS Lambda（SnapStart）+ API Gateway + S3 |
+| インフラ | AWS Lambda（SnapStart）+ API Gateway（REST API）+ S3 + CloudFront |
 | IaC | AWS CDK |
+| 監視・ウォームアップ | GitHub Actions（cron で `/api/health` を定期実行） |
 | IDE | IntelliJ IDEA Community Edition |
 | ビルド | Maven |
 
 ## 📐 システム構成
 
 ```
-ブラウザ → S3（HTML + CSS + JavaScript）
-              ↓ fetch API リクエスト
-           API Gateway（HTTP API）
-              ↓
-           Lambda（Spring Boot + SnapStart）
-              ↓ JPA
-           Supabase（PostgreSQL）
+ブラウザ
+   ↓ HTTPS
+CloudFront（CDN + HTTPS）
+   ↓ OAC（Origin Access Control）
+S3（HTML + CSS + JavaScript／非公開バケット）
+   ┄┄ fetch API リクエスト ┄┄→ API Gateway（REST API + 使用量プラン）
+                                    ↓
+                                 Lambda（Spring Boot + SnapStart）
+                                    ↓ JPA / SSM（接続情報を実行時取得）
+                                 Supabase（PostgreSQL）
 ```
+
+> CloudFront を唯一の公開エンドポイントとし、`/*` は S3、`/api/*` は API Gateway へ
+> ルーティングする統合が完了済み。フロント（app.js）は相対パス `/api/...` で API を呼び、
+> 同一オリジンのため CORS 不要。PDF等のバイナリは `binaryMediaTypes` で正しく配信される。
 
 ## 📂 プロジェクト構成
 
@@ -54,11 +62,13 @@ CareDocWeb/
 │   │   │   ├── CareDocWebApplication.java
 │   │   │   ├── StreamLambdaHandler.java
 │   │   │   ├── config/
-│   │   │   │   └── DataInitializer.java
+│   │   │   │   ├── DataInitializer.java
+│   │   │   │   └── DataSourceConfig.java   ← 本番DataSource（SSMから接続情報取得）
 │   │   │   ├── controller/
 │   │   │   │   ├── MemberController.java
 │   │   │   │   ├── CommonSettingsController.java
-│   │   │   │   └── PdfController.java
+│   │   │   │   ├── PdfController.java
+│   │   │   │   └── HealthController.java   ← ヘルスチェック（死活監視・ウォームアップ用）
 │   │   │   ├── dto/
 │   │   │   │   └── PdfGenerateRequest.java
 │   │   │   ├── entity/
@@ -98,13 +108,24 @@ CareDocWeb/
 │       │   ├── controller/
 │       │   │   ├── MemberControllerTest.java
 │       │   │   ├── CommonSettingsControllerTest.java
-│       │   │   └── PdfControllerTest.java
+│       │   │   ├── PdfControllerTest.java
+│       │   │   └── HealthControllerTest.java
 │       │   └── service/
 │       │       ├── MemberServiceImplTest.java
 │       │       ├── CommonSettingsServiceImplTest.java
 │       │       └── PdfServiceImplTest.java
 │       └── resources/
 │           └── application.yaml
+├── cdk/                                 ← インフラ（AWS CDK / Java）
+│   ├── src/main/java/com/example/cdk/
+│   │   ├── CareDocWebCdkApp.java         ← CDKアプリのエントリポイント
+│   │   ├── FrontendStack.java            ← S3 + CloudFront スタック（配信）
+│   │   └── BackendStack.java             ← Lambda + API Gateway スタック（API）
+│   ├── cdk.json
+│   └── pom.xml
+├── .github/
+│   └── workflows/
+│       └── warmup.yml                   ← Lambda定期ウォームアップ（5分ごとに /api/health を叩く）
 ├── pom.xml
 ├── mvnw / mvnw.cmd
 └── README.md
@@ -135,6 +156,12 @@ CareDocWeb/
 |---------|------|-----------|------|
 | POST | /api/pdf/generate | 200 (application/pdf) | PDF生成・ダウンロード |
 
+### ヘルスチェック
+
+| メソッド | パス | ステータス | 機能 |
+|---------|------|-----------|------|
+| GET | /api/health | 200 | 死活監視・ウォームアップ（DB接続を確認し `{"status":"ok","db":"up"}` を返す） |
+
 ## 🗄 DBテーブル
 
 | テーブル | 説明 |
@@ -146,7 +173,7 @@ CareDocWeb/
 
 ## 🧪 テスト
 
-全103件パス（JUnit 5 + Mockito + MockMvc）
+全106件パス（JUnit 5 + Mockito + MockMvc）
 
 | テストクラス | テスト数 | 対象 |
 |---|---|---|
@@ -154,6 +181,7 @@ CareDocWeb/
 | MemberControllerTest | 18 | 利用者API（HTTP検証） |
 | CommonSettingsControllerTest | 10 | 共通設定API（HTTP検証） |
 | PdfControllerTest | 14 | PDF生成API（HTTP検証） |
+| HealthControllerTest | 3 | ヘルスチェックAPI（HTTP検証） |
 | MemberServiceImplTest | 25 | 利用者サービス（ロジック検証） |
 | CommonSettingsServiceImplTest | 16 | 共通設定サービス（ロジック検証） |
 | PdfServiceImplTest | 19 | PDF生成サービス（バイナリ生成検証） |
@@ -167,8 +195,29 @@ mvn clean test
 | Phase | 内容 | 状態 |
 |-------|------|------|
 | 1 | 利用者選択 → PDF生成（インメモリDB, 認証なし, ローカル実行） | ✅ 完了 |
-| 2 | Supabase接続 + Lambda SnapStart デプロイ | 🔧 進行中 |
-| 3 | 認証（Supabase Auth）, フロントエンド, CI/CD | ⬜ |
+| 2 | Supabase接続 | ✅ 完了 |
+| 3 | フロントエンド（S3 + CloudFront）を CDK でデプロイ | ✅ 完了 |
+| 4 | Lambda SnapStart + API Gateway（REST API）を CDK でデプロイ | ✅ 完了 |
+| 4-統合 | CloudFront から `/api/*` を API Gateway へルーティング（同一オリジン化・CORS不要）+ PDF等バイナリ配信（binaryMediaTypes） | ✅ 完了 |
+| 4-高速化 | SnapStartエイリアス化でコールドスタート改善 + 定期ウォームアップ（GitHub Actions cron → /api/health） | ✅ 完了 |
+| 5 | 認証（Supabase Auth）, CI/CD | ⬜ |
+
+## ☁️ インフラ（AWS CDK）
+
+インフラは **AWS CDK（Java）** でコード化（IaC）しています。
+詳細は [インフラ設計書（CDK）](docs/CareDocWeb%20インフラ設計書（CDK）.md) を参照。
+
+| リソース | 役割 |
+|----------|------|
+| S3 | フロントエンド静的ファイル格納（パブリックアクセス全ブロック） |
+| CloudFront | HTTPS配信・CDN。OAC で S3 へのアクセスを制御 |
+| Lambda + API Gateway | Spring Boot API を REST API で公開（SnapStart・使用量プラン） |
+
+フロントエンド公開URL（CloudFront）:
+**https://dre5onrtbrgty.cloudfront.net**
+
+> CloudFront を唯一の公開エンドポイントとし、`/*` は S3、`/api/*` は API Gateway へ
+> ルーティングする統合が完了済み。フロントとAPIが同一オリジンのため CORS 不要。
 
 ## 🏗 ビルド・実行方法
 
@@ -229,8 +278,10 @@ Invoke-WebRequest -Uri "http://localhost:8080/api/pdf/generate" `
 | リソース | 用途 |
 |----------|------|
 | Lambda（Java 21 + SnapStart） | Spring Boot API 実行 |
-| API Gateway（HTTP API） | HTTPリクエストをLambdaに転送 |
+| API Gateway（REST API） | HTTPリクエストをLambdaに転送。使用量プラン（APIキー・レート制限） |
 | S3 | フロントエンド静的ホスティング |
+| CloudFront | HTTPS配信・CDN（OACでS3を保護） |
+| SSM Parameter Store | DB接続情報（URL/ユーザー名/パスワード）を実行時取得 |
 | Supabase | PostgreSQL データベース |
 
 ### Lambda設定
@@ -240,7 +291,7 @@ Invoke-WebRequest -Uri "http://localhost:8080/api/pdf/generate" `
 | ハンドラー | `com.example.CareDocWeb.StreamLambdaHandler::handleRequest` |
 | ランタイム | Java 21 |
 | SnapStart | PublishedVersions |
-| メモリ | 512MB |
+| メモリ | 2048MB（2GB） |
 | タイムアウト | 30秒 |
 
 ## 💰 運用コスト（見込み）

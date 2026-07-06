@@ -17,6 +17,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +30,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>{@code @WebMvcTest} を使用し、HTTPリクエスト/レスポンスの観点から
  * PDF生成エンドポイントの動作を検証する。</p>
+ *
+ * <p>テストは「正常系」「境界値」「異常系」の3分類で構成する。</p>
  */
 @WebMvcTest(PdfController.class)
 @DisplayName("POST /api/pdf/generate")
@@ -50,6 +53,10 @@ class PdfControllerTest {
     private PdfService pdfService;
 
     private final UUID sampleMemberId = UUID.fromString("d265e665-368a-44a9-9808-fe5c063bec44");
+
+    // 申請年は「当年・翌年のみ許可」のバリデーションがあるため、
+    // テストの申請年は固定値ではなく実行時の当年を使う（将来もテストが壊れない）。
+    private final int validYear = LocalDate.now().getYear();
 
     private Member createSampleMember() {
         Member member = new Member();
@@ -89,7 +96,7 @@ class PdfControllerTest {
                     .thenReturn(fakePdf);
 
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    sampleMemberId, 2026, 7, 2, "状態悪化のため"
+                    sampleMemberId, validYear, 7, 2, "状態悪化のため"
             );
 
             // 実行 & 検証
@@ -118,7 +125,7 @@ class PdfControllerTest {
             when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
 
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    sampleMemberId, 2026, 7, 2, null
+                    sampleMemberId, validYear, 7, 2, null
             );
 
             // 実行 & 検証
@@ -142,7 +149,7 @@ class PdfControllerTest {
             when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
 
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    sampleMemberId, 2026, 7, 2, null
+                    sampleMemberId, validYear, 7, 2, null
             );
 
             // 実行 & 検証
@@ -151,6 +158,44 @@ class PdfControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(content().bytes(fakePdf));
+        }
+
+        @Test
+        @DisplayName("申請年が当年なら200を返す")
+        void returns200_withCurrentYear() throws Exception {
+            // 準備
+            int currentYear = LocalDate.now().getYear();
+            when(memberService.findById(sampleMemberId)).thenReturn(createSampleMember());
+            when(commonSettingsService.find()).thenReturn(createSampleSettings());
+            when(pdfService.generate(any(), any(), any())).thenReturn("%PDF-1.4".getBytes());
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, currentYear, 7, 2, null);
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("申請年が翌年なら200を返す")
+        void returns200_withNextYear() throws Exception {
+            // 準備
+            int nextYear = LocalDate.now().getYear() + 1;
+            when(memberService.findById(sampleMemberId)).thenReturn(createSampleMember());
+            when(commonSettingsService.find()).thenReturn(createSampleSettings());
+            when(pdfService.generate(any(), any(), any())).thenReturn("%PDF-1.4".getBytes());
+
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, nextYear, 7, 2, null);
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
         }
     }
 
@@ -175,7 +220,7 @@ class PdfControllerTest {
             when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
 
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    sampleMemberId, 2026, 7, 2, ""
+                    sampleMemberId, validYear, 7, 2, ""
             );
 
             // 実行 & 検証
@@ -199,7 +244,7 @@ class PdfControllerTest {
             when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
 
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    sampleMemberId, 2026, 1, 1, null
+                    sampleMemberId, validYear, 1, 1, null
             );
 
             // 実行 & 検証
@@ -222,7 +267,7 @@ class PdfControllerTest {
             when(pdfService.generate(any(), any(), any())).thenReturn(fakePdf);
 
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    sampleMemberId, 2026, 12, 31, null
+                    sampleMemberId, validYear, 12, 31, null
             );
 
             // 実行 & 検証
@@ -241,6 +286,8 @@ class PdfControllerTest {
     @DisplayName("異常系")
     class Error {
 
+        // --- リソース不在（404）---
+
         @Test
         @DisplayName("存在しないmemberIdで404を返す")
         void returns404_whenMemberNotFound() throws Exception {
@@ -250,7 +297,7 @@ class PdfControllerTest {
                     .thenThrow(new ResourceNotFoundException("利用者が見つかりません: " + nonExistentId));
 
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    nonExistentId, 2026, 7, 2, null
+                    nonExistentId, validYear, 7, 2, null
             );
 
             // 実行 & 検証
@@ -270,7 +317,7 @@ class PdfControllerTest {
                     .thenThrow(new ResourceNotFoundException("共通設定が登録されていません"));
 
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    sampleMemberId, 2026, 7, 2, null
+                    sampleMemberId, validYear, 7, 2, null
             );
 
             // 実行 & 検証
@@ -279,6 +326,8 @@ class PdfControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isNotFound());
         }
+
+        // --- 必須項目の欠落（400）---
 
         @Test
         @DisplayName("memberIdなしで400を返す")
@@ -366,27 +415,81 @@ class PdfControllerTest {
                     .andExpect(status().isBadRequest());
         }
 
+        // --- 申請年月日の妥当性（400）---
+
         @Test
-        @DisplayName("PDF生成中にサービスが例外をスローした場合、500を返す")
-        void returns500_whenPdfServiceThrows() throws Exception {
+        @DisplayName("申請年が過去年（前年）の場合400を返す")
+        void returns400_withPastYear() throws Exception {
             // 準備
-            Member member = createSampleMember();
-            CommonSettings settings = createSampleSettings();
-
-            when(memberService.findById(sampleMemberId)).thenReturn(member);
-            when(commonSettingsService.find()).thenReturn(settings);
-            when(pdfService.generate(any(), any(), any()))
-                    .thenThrow(new RuntimeException("PDF生成に失敗しました"));
-
+            int pastYear = LocalDate.now().getYear() - 1;
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    sampleMemberId, 2026, 7, 2, null
-            );
+                    sampleMemberId, pastYear, 7, 2, null);
 
             // 実行 & 検証
             mockMvc.perform(post("/api/pdf/generate")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("申請年が翌々年（2年後）の場合400を返す")
+        void returns400_withTooFutureYear() throws Exception {
+            // 準備
+            int tooFutureYear = LocalDate.now().getYear() + 2;
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, tooFutureYear, 7, 2, null);
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("申請月が13の場合400を返す")
+        void returns400_withInvalidMonth() throws Exception {
+            // 準備
+            int currentYear = LocalDate.now().getYear();
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, currentYear, 13, 2, null);
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("2月30日など存在しない日付の場合400を返す")
+        void returns400_withNonExistentDate() throws Exception {
+            // 準備: 2月30日は存在しない
+            int currentYear = LocalDate.now().getYear();
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, currentYear, 2, 30, null);
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("4月31日（30日までの月に31日）の場合400を返す")
+        void returns400_withApril31st() throws Exception {
+            // 準備: 4月は30日まで
+            int currentYear = LocalDate.now().getYear();
+            PdfGenerateRequest request = new PdfGenerateRequest(
+                    sampleMemberId, currentYear, 4, 31, null);
+
+            // 実行 & 検証
+            mockMvc.perform(post("/api/pdf/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
         }
     }
 }

@@ -1,0 +1,9 @@
+# Maven ビルド成果物
+target/
+
+# CDK 合成出力
+cdk.out/
+
+# IDE
+.idea/
+*.iml

@@ -61,6 +61,42 @@
 			<version>3.0.0</version>
 		</dependency>
 
+		<!-- AWS SDK for Java v2 - SSM Parameter Store（本番でDBパスワードを取得） -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>ssm</artifactId>
+			<version>2.28.11</version>
+			<exclusions>
+				<!-- 非同期HTTPクライアント（Netty）は使わないので除外してjarを軽量化。 -->
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>netty-nio-client</artifactId>
+				</exclusion>
+				<!-- Apache HTTPクライアントも除外。代わりにJDK標準ベースの
+				     url-connection-client を使い、httpclient/httpcore/commons-codec 等を削減。 -->
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>apache-client</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- SSM用の軽量な同期HTTPクライアント（JDK標準 HttpURLConnection ベース）。
+		     apache-client より依存が少なく fat-jar を軽量化できる。 -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>url-connection-client</artifactId>
+			<version>2.28.11</version>
+		</dependency>
+
+		<!-- Jakarta EL 実装。Lambda用fat-jarではTomcat（tomcat-embed-el）を除外するため、
+		     Hibernate Validator が必要とする Jakarta EL を独立実装で明示的に補う。 -->
+		<dependency>
+			<groupId>org.glassfish.expressly</groupId>
+			<artifactId>expressly</artifactId>
+			<version>5.0.0</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
@@ -123,6 +159,7 @@
 							<artifactSet>
 								<excludes>
 									<exclude>org.apache.tomcat.embed:*</exclude>
+									<exclude>org.springframework.boot:spring-boot-devtools</exclude>
 								</excludes>
 							</artifactSet>
 						</configuration>
