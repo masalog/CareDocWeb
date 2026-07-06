@@ -62,13 +62,19 @@ function initDateSelects() {
     // 申請年：当年・翌年
     yearSelect.innerHTML = '';
     [currentYear, currentYear + 1].forEach(y => {
-        yearSelect.innerHTML += `<option value="${y}">${y}年</option>`;
+        const option = document.createElement('option');
+        option.value = y;
+        option.textContent = `${y}年`;
+        yearSelect.appendChild(option);
     });
 
-    // 申請月：1〜12（初期値は当月）
+    // 月の選択肢を生成
     monthSelect.innerHTML = '';
     for (let m = 1; m <= 12; m++) {
-        monthSelect.innerHTML += `<option value="${m}">${m}月</option>`;
+        const option = document.createElement('option');
+        option.value = m;
+        option.textContent = `${m}月`;
+        monthSelect.appendChild(option);
     }
     monthSelect.value = now.getMonth() + 1;
 
@@ -98,8 +104,12 @@ function updateDayOptions() {
     const prevDay = parseInt(daySelect.value) || 1;
     daySelect.innerHTML = '';
     for (let d = 1; d <= lastDay; d++) {
-        daySelect.innerHTML += `<option value="${d}">${d}日</option>`;
+        const option = document.createElement('option');
+        option.value = d;
+        option.textContent = `${d}日`;
+        daySelect.appendChild(option);
     }
+
     // 以前の選択日を可能な範囲で維持（末日超過時は末日に丸める）
     daySelect.value = Math.min(prevDay, lastDay);
 }
