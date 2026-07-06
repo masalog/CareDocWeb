@@ -37,7 +37,7 @@ POST   /api/pdf/generate     PDFを生成してダウンロード
 
 リクエストボディ:
 {
-  "memberId": 1,
+  "memberId": "uuid",
   "applicationYear": 2026,
   "applicationMonth": 6,
   "applicationDay": 29,
@@ -45,6 +45,19 @@ POST   /api/pdf/generate     PDFを生成してダウンロード
 }
 
 レスポンス: application/pdf（バイナリ）
+```
+
+### ヘルスチェック
+
+```
+GET    /api/health          死活監視・ウォームアップ用
+
+レスポンス（application/json）:
+{ "status": "ok", "db": "up" }   // DB接続を connection.isValid で確認
+
+※ DB接続に失敗しても 200 + db:"down" を返す（ウォームアップ用途のため
+  エンドポイント自体は生かす）。GitHub Actions cron から定期的に叩き、
+  Lambda をアイドル回収させずウォーム状態に保つ。
 ```
 
 ---
