@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * グローバル例外ハンドラー。
@@ -34,6 +35,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleResourceNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ex.getMessage());
+    }
+
+    /**
+     * 静的リソースが見つからない場合、404 Not Found を静かに返す。
+     *
+     * <p>ブラウザが自動要求する /favicon.ico や、ブラウザ拡張由来の
+     * リクエスト（serviceWorker.js 等）でこの例外が発生する。これらは
+     * アプリの不具合ではないため、500 ではなく 404 とし、ERROR ログも出さない
+     * （キャッチオールの Exception ハンドラに拾わせないことでログ汚染を防ぐ）。</p>
+     *
+     * @param ex 発生した例外
+     * @return 404 ステータス（ボディなし）
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoResourceFound(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
 
     /**
