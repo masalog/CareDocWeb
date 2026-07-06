@@ -7,11 +7,13 @@ name: Lambda ウォームアップ
 # 経路: GitHub Actions → CloudFront (/api/health, キャッシュ無効) → API Gateway
 #       → エイリアス live → Lambda（DB接続も軽く確認して温める）
 #
-# コスト: 5分間隔で月約8,640回。Lambda無料枠（月100万リクエスト）の1%未満で無料枠内。
+# コスト: 10分間隔で月約4,320回。Lambda無料枠（月100万リクエスト）の1%未満で無料枠内。
+#
+# 注意: schedule / workflow_dispatch は main ブランチに存在しないと有効化されない。
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
