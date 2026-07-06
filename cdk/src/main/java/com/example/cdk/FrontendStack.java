@@ -122,11 +122,11 @@ public class FrontendStack extends Stack {
                 .build();
 
         // ------------------------------------------------------------
-        // 5. Lambda 定期ウォームアップ（EventBridge Scheduler → CloudFront）
+        // 5. Lambda 定期ウォームアップ（EventBridge Rule → CloudFront）
         //    SnapStart でも残るアイドルタイムアウト（約15分）対策として、
-        //    10分間隔で CloudFront 経由の /api/health を叩き、Lambda を温める。
+        //    5分間隔で CloudFront 経由の /api/health を叩き、Lambda を温める。
         //
-        //    経路: EventBridge Scheduler → API Destination (HTTPS)
+        //    経路: EventBridge Rule → API Destination (HTTPS)
         //          → CloudFront (/api/health) → API Gateway → alias live → Lambda
         //
         //    本番のユーザーアクセスと完全に同一の経路で温めるため、
