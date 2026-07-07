@@ -1,4 +1,41 @@
 // ========================================
+// セキュリティ / DOMユーティリティ
+// ========================================
+
+/**
+ * DOM-based XSS 対策：HTML特殊文字をエスケープする。
+ * innerHTML にサーバー由来のテキスト（利用者名など）を埋め込む際は、
+ * 必ずこの関数を通すこと。
+ *
+ * @param {*} value - エスケープ対象（null/undefined/数値も許容）
+ * @returns {string} エスケープ済み文字列
+ */
+function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
+ * value と表示テキストを指定して option 要素を安全に生成する。
+ * textContent を使うため、表示テキストに含まれるHTMLは実行されない。
+ *
+ * @param {string|number} value - option の value 属性
+ * @param {string} text - 画面に表示するテキスト（自動でエスケープ相当の安全処理）
+ * @returns {HTMLOptionElement}
+ */
+function createOption(value, text) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = text;
+    return option;
+}
+
+// ========================================
 // セクション切り替え
 // ========================================
 
@@ -32,9 +69,11 @@ function loadMemberSelect() {
         .then(res => res.json())
         .then(members => {
             const select = document.getElementById('member-select');
-            select.innerHTML = '<option value="">-- 選択してください --</option>';
+            // innerHTML文字列連結をやめ、textContentベースのoption生成でXSSを防止
+            select.replaceChildren();
+            select.appendChild(createOption('', '-- 選択してください --'));
             members.forEach(m => {
-                select.innerHTML += `<option value="${m.id}">${m.name}（${m.careLevel || '未設定'}）</option>`;
+                select.appendChild(createOption(m.id, `${m.name}（${m.careLevel || '未設定'}）`));
             });
         });
 }
@@ -60,21 +99,15 @@ function initDateSelects() {
     const currentYear = now.getFullYear();
 
     // 申請年：当年・翌年
-    yearSelect.innerHTML = '';
+    yearSelect.replaceChildren();
     [currentYear, currentYear + 1].forEach(y => {
-        const option = document.createElement('option');
-        option.value = y;
-        option.textContent = `${y}年`;
-        yearSelect.appendChild(option);
+        yearSelect.appendChild(createOption(y, `${y}年`));
     });
 
     // 月の選択肢を生成
-    monthSelect.innerHTML = '';
+    monthSelect.replaceChildren();
     for (let m = 1; m <= 12; m++) {
-        const option = document.createElement('option');
-        option.value = m;
-        option.textContent = `${m}月`;
-        monthSelect.appendChild(option);
+        monthSelect.appendChild(createOption(m, `${m}月`));
     }
     monthSelect.value = now.getMonth() + 1;
 
@@ -102,12 +135,9 @@ function updateDayOptions() {
     const lastDay = new Date(year, month, 0).getDate(); // その月の末日
 
     const prevDay = parseInt(daySelect.value) || 1;
-    daySelect.innerHTML = '';
+    daySelect.replaceChildren();
     for (let d = 1; d <= lastDay; d++) {
-        const option = document.createElement('option');
-        option.value = d;
-        option.textContent = `${d}日`;
-        daySelect.appendChild(option);
+        daySelect.appendChild(createOption(d, `${d}日`));
     }
 
     // 以前の選択日を可能な範囲で維持（末日超過時は末日に丸める）
@@ -358,6 +388,7 @@ function initSettingsDateGroup(prefix) {
         option.value = y;
         option.textContent = y + '年';
         yearSelect.appendChild(option);
+    for (let y = currentYear + 1; y >= currentYear - 30; y--) {
     }
 
     // 月：1〜12月（空欄を先頭に）
