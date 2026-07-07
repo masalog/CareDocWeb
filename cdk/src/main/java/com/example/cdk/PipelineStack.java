@@ -14,6 +14,7 @@ import software.amazon.awscdk.pipelines.CodeBuildStep;
 import software.amazon.awscdk.pipelines.ConnectionSourceOptions;
 import software.amazon.awscdk.pipelines.StageDeployment;
 import software.amazon.awscdk.services.codebuild.BuildSpec;
+import software.amazon.awscdk.services.codepipeline.PipelineType;
 import software.amazon.awscdk.services.codestarconnections.CfnConnection;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 
@@ -21,7 +22,7 @@ import software.amazon.awscdk.services.iam.PolicyStatement;
  * CDK Pipelines（セルフミューテーティング）による CI/CD スタック。
  *
  * main への push で以下がすべて自動実行される：
- *   1. Synth      : mvn package（Lambda 用 jar 生成）+ cdk synth
+ *   1. Synth      : mvn package（テスト実行 + Lambda 用 jar 生成）+ cdk synth
  *   2. SelfMutate : パイプライン自身を最新の定義に更新
  *   3. Deploy     : BackendStack → FrontendStack を CloudFormation で更新
  *   4. Post       : 静的ファイルを S3 に sync + CloudFront キャッシュ無効化
@@ -43,6 +44,10 @@ public class PipelineStack extends Stack {
         // ---- パイプライン本体 ----
         CodePipeline pipeline = CodePipeline.Builder.create(this, "Pipeline")
                 .pipelineName("CareDocWebPipeline")
+                // V2 を明示指定（未指定時は feature flag が無効の場合 V1 になり警告が出る）。
+                // V2 は実行時間ベースの課金（無料枠あり）で、実行頻度の低い本用途では
+                // V1 の月額固定課金より低コスト。
+                .pipelineType(PipelineType.V2)
                 // Synth ステップ: リポジトリを取得し、アプリの jar をビルドしてから synth する
                 .synth(CodeBuildStep.Builder.create("Synth")
                         .input(CodePipelineSource.connection(
