@@ -1,4 +1,41 @@
 // ========================================
+// セキュリティ / DOMユーティリティ
+// ========================================
+
+/**
+ * DOM-based XSS 対策：HTML特殊文字をエスケープする。
+ * innerHTML にサーバー由来のテキスト（利用者名など）を埋め込む際は、
+ * 必ずこの関数を通すこと。
+ *
+ * @param {*} value - エスケープ対象（null/undefined/数値も許容）
+ * @returns {string} エスケープ済み文字列
+ */
+function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
+ * value と表示テキストを指定して option 要素を安全に生成する。
+ * textContent を使うため、表示テキストに含まれるHTMLは実行されない。
+ *
+ * @param {string|number} value - option の value 属性
+ * @param {string} text - 画面に表示するテキスト（自動でエスケープ相当の安全処理）
+ * @returns {HTMLOptionElement}
+ */
+function createOption(value, text) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = text;
+    return option;
+}
+
+// ========================================
 // セクション切り替え
 // ========================================
 
@@ -32,9 +69,11 @@ function loadMemberSelect() {
         .then(res => res.json())
         .then(members => {
             const select = document.getElementById('member-select');
-            select.innerHTML = '<option value="">-- 選択してください --</option>';
+            // innerHTML文字列連結をやめ、textContentベースのoption生成でXSSを防止
+            select.replaceChildren();
+            select.appendChild(createOption('', '-- 選択してください --'));
             members.forEach(m => {
-                select.innerHTML += `<option value="${m.id}">${m.name}（${m.careLevel || '未設定'}）</option>`;
+                select.appendChild(createOption(m.id, `${m.name}（${m.careLevel || '未設定'}）`));
             });
         });
 }
@@ -60,21 +99,15 @@ function initDateSelects() {
     const currentYear = now.getFullYear();
 
     // 申請年：当年・翌年
-    yearSelect.innerHTML = '';
+    yearSelect.replaceChildren();
     [currentYear, currentYear + 1].forEach(y => {
-        const option = document.createElement('option');
-        option.value = y;
-        option.textContent = `${y}年`;
-        yearSelect.appendChild(option);
+        yearSelect.appendChild(createOption(y, `${y}年`));
     });
 
     // 月の選択肢を生成
-    monthSelect.innerHTML = '';
+    monthSelect.replaceChildren();
     for (let m = 1; m <= 12; m++) {
-        const option = document.createElement('option');
-        option.value = m;
-        option.textContent = `${m}月`;
-        monthSelect.appendChild(option);
+        monthSelect.appendChild(createOption(m, `${m}月`));
     }
     monthSelect.value = now.getMonth() + 1;
 
@@ -102,12 +135,9 @@ function updateDayOptions() {
     const lastDay = new Date(year, month, 0).getDate(); // その月の末日
 
     const prevDay = parseInt(daySelect.value) || 1;
-    daySelect.innerHTML = '';
+    daySelect.replaceChildren();
     for (let d = 1; d <= lastDay; d++) {
-        const option = document.createElement('option');
-        option.value = d;
-        option.textContent = `${d}日`;
-        daySelect.appendChild(option);
+        daySelect.appendChild(createOption(d, `${d}日`));
     }
 
     // 以前の選択日を可能な範囲で維持（末日超過時は末日に丸める）
@@ -181,27 +211,39 @@ function loadMembers() {
         .then(members => {
             const container = document.getElementById('member-list');
             if (members.length === 0) {
-                container.innerHTML = '<p>登録されている利用者がいません。</p>';
+                const p = document.createElement('p');
+                p.textContent = '登録されている利用者がいません。';
+                container.replaceChildren(p);
                 return;
             }
+            // 各セルはescapeHtmlでエスケープし、操作ボタンはonclick属性を使わず
+            // dataset + addEventListener でバインドすることで属性インジェクションを根本排除する
             let html = `<table class="member-table">
                 <thead><tr>
                     <th>氏名</th><th>フリガナ</th><th>介護度</th><th>被保険者番号</th><th>操作</th>
                 </tr></thead><tbody>`;
             members.forEach(m => {
                 html += `<tr>
-                    <td>${m.name}</td>
-                    <td>${m.furigana || ''}</td>
-                    <td>${m.careLevel || ''}</td>
-                    <td>${m.insuranceIdNumber || ''}</td>
+                    <td>${escapeHtml(m.name)}</td>
+                    <td>${escapeHtml(m.furigana)}</td>
+                    <td>${escapeHtml(m.careLevel)}</td>
+                    <td>${escapeHtml(m.insuranceIdNumber)}</td>
                     <td class="actions">
-                        <button class="btn btn-edit" onclick="editMember('${m.id}')">編集</button>
-                        <button class="btn btn-danger" onclick="deleteMember('${m.id}', '${m.name}')">削除</button>
+                        <button class="btn btn-edit" data-id="${escapeHtml(m.id)}" data-action="edit">編集</button>
+                        <button class="btn btn-danger" data-id="${escapeHtml(m.id)}" data-name="${escapeHtml(m.name)}" data-action="delete">削除</button>
                     </td>
                 </tr>`;
             });
             html += '</tbody></table>';
             container.innerHTML = html;
+
+            // 操作ボタンにイベントを委譲でバインド（インラインJSを使わない）
+            container.querySelectorAll('button[data-action="edit"]').forEach(btn => {
+                btn.addEventListener('click', () => editMember(btn.dataset.id));
+            });
+            container.querySelectorAll('button[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', () => deleteMember(btn.dataset.id, btn.dataset.name));
+            });
         });
 }
 
@@ -334,7 +376,85 @@ function deleteMember(id, name) {
  * 共通設定を取得してフォームに反映
  * GET /api/settings
  */
+/**
+ * 共通設定用：年・月・日のプルダウンを初期化する汎用関数。
+ * index.html の申請年月日（initDateSelects）とは独立した実装。
+ * - 年：当年を中心に前後の範囲を生成（未選択の空欄を許容）
+ * - 月：1〜12月（空欄を許容）
+ * - 日：選択中の年・月に応じて末日まで動的生成（うるう年も自動対応）
+ *
+ * @param {string} prefix - 各selectのid接頭辞（例: 's-institution' → s-institution-year/month/day）
+ */
+
+// 年月日プルダウンの初期化済みフラグ
+const settingsDateInitFlags = {};
+
+function initSettingsDateGroup(prefix) {
+
+    // すでに初期化済みなら何もしない（イベントリスナーの重複防止）
+    if (settingsDateInitFlags[prefix]) return;
+    settingsDateInitFlags[prefix] = true;
+
+    const yearSelect = document.getElementById(prefix + '-year');
+    const monthSelect = document.getElementById(prefix + '-month');
+    const daySelect = document.getElementById(prefix + '-day');
+    if (!yearSelect || !monthSelect || !daySelect) return;
+
+    const currentYear = new Date().getFullYear();
+
+    // 年：当年を基準に過去30年〜翌年まで（空欄を先頭に）
+    yearSelect.replaceChildren(createOption('', '--'));
+    for (let y = currentYear + 1; y >= currentYear - 30; y--) {
+        yearSelect.appendChild(createOption(y, y + '年'));
+    }
+
+    // 月：1〜12月（空欄を先頭に）
+    monthSelect.replaceChildren(createOption('', '--'));
+    for (let m = 1; m <= 12; m++) {
+        monthSelect.appendChild(createOption(m, m + '月'));
+    }
+
+    // 年・月変更時に日を再生成
+    const rebuildDays = () => updateSettingsDayOptions(prefix);
+    yearSelect.addEventListener('change', rebuildDays);
+    monthSelect.addEventListener('change', rebuildDays);
+
+    // 初期の日選択肢を生成
+    updateSettingsDayOptions(prefix);
+}
+
+/**
+ * 選択中の年・月に応じて、日のプルダウンを末日まで動的生成する。
+ * 年または月が未選択の場合は最大31日を仮表示する。
+ *
+ * @param {string} prefix - 各selectのid接頭辞
+ */
+function updateSettingsDayOptions(prefix) {
+    const yearSelect = document.getElementById(prefix + '-year');
+    const monthSelect = document.getElementById(prefix + '-month');
+    const daySelect = document.getElementById(prefix + '-day');
+
+    const year = parseInt(yearSelect.value);
+    const month = parseInt(monthSelect.value);
+
+    // 年・月が揃えば正確な末日、揃わなければ31日を仮採用
+    const lastDay = (year && month) ? new Date(year, month, 0).getDate() : 31;
+
+    const prevDay = parseInt(daySelect.value) || null;
+    daySelect.replaceChildren(createOption('', '--'));
+    for (let d = 1; d <= lastDay; d++) {
+        daySelect.appendChild(createOption(d, d + '日'));
+    }
+
+    // 以前の選択日を可能な範囲で維持（末日超過時はクリア）
+    if (prevDay && prevDay <= lastDay) {
+        daySelect.value = prevDay;
+    }
+}
+
 function loadSettings() {
+    // 共通設定が未登録でもプルダウンが空にならないよう、先に初期化しておく
+    initSettingsDateGroup('s-institution');
     fetch('/api/settings')
         .then(res => {
             if (!res.ok) throw new Error('共通設定が未登録です');
@@ -347,6 +467,11 @@ function loadSettings() {
             document.getElementById('s-facility-phone').value = s.facilityPhone || '';
             document.getElementById('s-institution-name').value = s.institutionName || '';
             document.getElementById('s-institution-address').value = s.institutionAddress || '';
+            // 入所年月日：値をセット後、選択中の年月に応じて日の選択肢を再生成
+            document.getElementById('s-institution-year').value = s.institutionYear || '';
+            document.getElementById('s-institution-month').value = s.institutionMonth || '';
+            updateSettingsDayOptions('s-institution');
+            document.getElementById('s-institution-day').value = s.institutionDay || '';
             document.getElementById('s-agent-name').value = s.agentName || '';
             document.getElementById('s-agent-postal').value = s.agentPostal || '';
             document.getElementById('s-agent-address').value = s.agentAddress || '';
@@ -372,6 +497,9 @@ function saveSettings() {
         facilityPhone: document.getElementById('s-facility-phone').value || null,
         institutionName: document.getElementById('s-institution-name').value || null,
         institutionAddress: document.getElementById('s-institution-address').value || null,
+        institutionYear: parseInt(document.getElementById('s-institution-year').value) || null,
+        institutionMonth: parseInt(document.getElementById('s-institution-month').value) || null,
+        institutionDay: parseInt(document.getElementById('s-institution-day').value) || null,
         agentName: document.getElementById('s-agent-name').value || null,
         agentPostal: document.getElementById('s-agent-postal').value || null,
         agentAddress: document.getElementById('s-agent-address').value || null,

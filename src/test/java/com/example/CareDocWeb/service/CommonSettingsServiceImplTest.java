@@ -51,6 +51,9 @@ class CommonSettingsServiceImplTest {
         sampleSettings.setFacilityPhone("03-3333-4444");
         sampleSettings.setInstitutionName("中央病院");
         sampleSettings.setInstitutionAddress("東京都中央区銀座4-4-4");
+        sampleSettings.setInstitutionYear(2026);
+        sampleSettings.setInstitutionMonth(3);
+        sampleSettings.setInstitutionDay(15);
         sampleSettings.setAgentName("山田一郎");
         sampleSettings.setAgentPostal("104-0061");
         sampleSettings.setAgentAddress("東京都中央区銀座5-5-5");
@@ -103,6 +106,9 @@ class CommonSettingsServiceImplTest {
             assertEquals("03-3333-4444", result.getFacilityPhone());
             assertEquals("中央病院", result.getInstitutionName());
             assertEquals("東京都中央区銀座4-4-4", result.getInstitutionAddress());
+            assertEquals(Integer.valueOf(2026), result.getInstitutionYear());
+            assertEquals(Integer.valueOf(3), result.getInstitutionMonth());
+            assertEquals(Integer.valueOf(15), result.getInstitutionDay());
             assertEquals("山田一郎", result.getAgentName());
             assertEquals("104-0061", result.getAgentPostal());
             assertEquals("東京都中央区銀座5-5-5", result.getAgentAddress());
@@ -271,6 +277,26 @@ class CommonSettingsServiceImplTest {
         }
 
         @Test
+        @DisplayName("正常系: 入院・入所年月日を更新して保存できる")
+        void updatesInstitutionDate() {
+            // 準備
+            sampleSettings.setInstitutionYear(2025);
+            sampleSettings.setInstitutionMonth(12);
+            sampleSettings.setInstitutionDay(31);
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
+            when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
+
+            // 実行
+            CommonSettings result = commonSettingsService.save(sampleSettings);
+
+            // 検証
+            assertEquals(Integer.valueOf(2025), result.getInstitutionYear());
+            assertEquals(Integer.valueOf(12), result.getInstitutionMonth());
+            assertEquals(Integer.valueOf(31), result.getInstitutionDay());
+            verify(commonSettingsRepository, times(1)).save(sampleSettings);
+        }
+
+        @Test
         @DisplayName("正常系: リポジトリのsaveが1回だけ呼ばれる")
         void callsRepositoryExactlyOnce() {
             // 準備
@@ -283,6 +309,26 @@ class CommonSettingsServiceImplTest {
             // 検証
             verify(commonSettingsRepository, times(1)).save(sampleSettings);
             verify(commonSettingsRepository, times(1)).findAll();
+        }
+
+        @Test
+        @DisplayName("境界値: 入院・入所年月日をNULLに更新しても保存できる")
+        void savesWithInstitutionDateNull() {
+            // 準備
+            sampleSettings.setInstitutionYear(null);
+            sampleSettings.setInstitutionMonth(null);
+            sampleSettings.setInstitutionDay(null);
+            when(commonSettingsRepository.findAll()).thenReturn(List.of(sampleSettings));
+            when(commonSettingsRepository.save(sampleSettings)).thenReturn(sampleSettings);
+
+            // 実行
+            CommonSettings result = commonSettingsService.save(sampleSettings);
+
+            // 検証
+            assertNull(result.getInstitutionYear());
+            assertNull(result.getInstitutionMonth());
+            assertNull(result.getInstitutionDay());
+            verify(commonSettingsRepository, times(1)).save(sampleSettings);
         }
 
         // --- 境界値 ---
@@ -354,6 +400,7 @@ class CommonSettingsServiceImplTest {
 
         @Test
         @DisplayName("異常系: NULLのエンティティを渡した場合、リポジトリに委譲される")
+        @SuppressWarnings("DataFlowIssue") // 意図的にnullを渡す異常系テストのため警告を抑制
         void throwsException_whenEntityIsNull() {
             // 準備
             when(commonSettingsRepository.findAll()).thenReturn(Collections.emptyList());

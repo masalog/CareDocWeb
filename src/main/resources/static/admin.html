@@ -10,7 +10,6 @@
     <header>
         <h1>CareDocWeb 管理画面</h1>
         <p>利用者データ・共通設定の管理</p>
-        <a href="index.html" class="admin-link">← PDF生成に戻る</a>
     </header>
 
     <nav>
@@ -157,10 +156,10 @@
                         <input type="text" id="s-survey-phone" name="surveyPhone">
                     </div>
                 </div>
-                <h3>入所施設</h3>
+                <h3>連絡先</h3>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="s-facility-name">施設名</label>
+                        <label for="s-facility-name">氏名</label>
                         <input type="text" id="s-facility-name" name="facilityName">
                     </div>
                     <div class="form-group">
@@ -168,21 +167,35 @@
                         <input type="text" id="s-facility-phone" name="facilityPhone">
                     </div>
                 </div>
-                <h3>医療機関</h3>
+                <h3>過去6月間の介護保険施設等 入所の有無</h3>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="s-institution-name">医療機関名</label>
+                        <label for="s-institution-name">名称</label>
                         <input type="text" id="s-institution-name" name="institutionName">
                     </div>
                     <div class="form-group">
-                        <label for="s-institution-address">住所</label>
+                        <label for="s-institution-address">所在地</label>
                         <input type="text" id="s-institution-address" name="institutionAddress">
                     </div>
                 </div>
-                <h3>代理人</h3>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="s-agent-name">氏名</label>
+                        <label for="s-institution-year">入所年（西暦）</label>
+                        <select id="s-institution-year" name="institutionYear"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="s-institution-month">月</label>
+                        <select id="s-institution-month" name="institutionMonth"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="s-institution-day">日</label>
+                        <select id="s-institution-day" name="institutionDay"></select>
+                    </div>
+                </div>
+                <h3>提出代行者</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="s-agent-name">名称</label>
                         <input type="text" id="s-agent-name" name="agentName">
                     </div>
                     <div class="form-group">
@@ -200,7 +213,7 @@
                         <input type="text" id="s-agent-phone" name="agentPhone">
                     </div>
                 </div>
-                <h3>主治医・クリニック</h3>
+                <h3>主治医</h3>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="s-doctor-name">主治医名</label>

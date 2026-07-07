@@ -57,6 +57,18 @@ public class CommonSettings {
     @Column(name = "institution_address")
     private String institutionAddress;
 
+    /** 入院・入所 — 年（西暦） */
+    @Column(name = "institution_year")
+    private Integer institutionYear;
+
+    /** 入院・入所 — 月 */
+    @Column(name = "institution_month")
+    private Integer institutionMonth;
+
+    /** 入院・入所 — 日 */
+    @Column(name = "institution_day")
+    private Integer institutionDay;
+
     /** 申請代理人 — 氏名 */
     @Column(name = "agent_name")
     private String agentName;
