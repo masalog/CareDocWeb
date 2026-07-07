@@ -167,7 +167,7 @@
                         <input type="text" id="s-facility-phone" name="facilityPhone">
                     </div>
                 </div>
-                <h3>過去6月間の介護保険施設・医療期間等 入院・入所の有無</h3>
+                <h3>過去6月間の介護保険施設等 入所の有無</h3>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="s-institution-name">名称</label>
@@ -178,7 +178,21 @@
                         <input type="text" id="s-institution-address" name="institutionAddress">
                     </div>
                 </div>
-                <h3>代理人</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="s-institution-year">入所年（西暦）</label>
+                        <select id="s-institution-year" name="institutionYear"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="s-institution-month">月</label>
+                        <select id="s-institution-month" name="institutionMonth"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="s-institution-day">日</label>
+                        <select id="s-institution-day" name="institutionDay"></select>
+                    </div>
+                </div>
+                <h3>提出代行者</h3>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="s-agent-name">名称</label>
