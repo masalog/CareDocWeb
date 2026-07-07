@@ -44,8 +44,15 @@ import software.amazon.awscdk.services.iam.PolicyStatement;
  */
 public class FrontendStack extends Stack {
 
-    /** 静的サイト用 S3 バケット。CI/CD（PipelineStack）から参照する。 */
+    /** 静的サイト用 S3 バケット。 */
     private final Bucket siteBucket;
+
+    /** CloudFront ディストリビューション。 */
+    private final Distribution distribution;
+
+    /** パイプラインの Post ステップ（静的ファイル配置）へ環境変数として渡す CfnOutput。 */
+    private final CfnOutput bucketNameOutput;
+    private final CfnOutput distributionIdOutput;
 
     public FrontendStack(final Construct scope, final String id,
             final LambdaRestApi api, final StackProps props) {
@@ -68,7 +75,7 @@ public class FrontendStack extends Stack {
         // ------------------------------------------------------------
         // 2. CloudFront ディストリビューション（HTTPS 配信）
         // ------------------------------------------------------------
-        Distribution distribution = Distribution.Builder.create(this, "Distribution")
+        this.distribution = Distribution.Builder.create(this, "Distribution")
                 .defaultBehavior(BehaviorOptions.builder()
                         // OAC 付きで S3 をオリジンに設定。
                         // これにより S3 バケットポリシーが自動生成され、
@@ -102,8 +109,9 @@ public class FrontendStack extends Stack {
                 .build();
 
         // ------------------------------------------------------------
-        // 3. フロントエンドファイルのデプロイは CI/CD（CodePipeline → CodeBuild →
-        //    aws s3 sync）で行うため、このスタックでは実施しない。
+        // 3. フロントエンドファイルのデプロイは CI/CD（CDK Pipelines の
+        //    Post ステップによる aws s3 sync）で行うため、このスタックでは
+        //    実施しない。コンテンツ更新時のキャッシュ無効化も Post ステップが担当。
         // ------------------------------------------------------------
 
         // ------------------------------------------------------------
@@ -111,8 +119,10 @@ public class FrontendStack extends Stack {
         //     onCreate: スタック初回作成時に実行
         //     onUpdate: スタック更新のたびに実行
         //     CallerReference に System.currentTimeMillis() を使っているため
-        //     synth のたびにプロパティが変化し、cdk deploy ごとに onUpdate が
+        //     synth のたびにプロパティが変化し、デプロイごとに onUpdate が
         //     確実に発火する（プロパティ変化がないと onUpdate は呼ばれないため）。
+        //     ※ インフラ更新時の無効化を担当。コンテンツ更新時はパイプラインの
+        //       Post ステップ側が担当する（両輪で漏れなくカバー）。
         // ------------------------------------------------------------
 
         // onCreate / onUpdate で共通の SDK 呼び出し定義
@@ -145,16 +155,23 @@ public class FrontendStack extends Stack {
                 .build();
 
         // ------------------------------------------------------------
-        // 4. 出力（デプロイ後にターミナルへ表示）
+        // 4. 出力（デプロイ後にターミナルへ表示 + パイプラインから参照）
+        //    BucketName / DistributionId はフィールドとして保持し、
+        //    CDK Pipelines の Post ステップに envFromCfnOutputs で渡す。
         // ------------------------------------------------------------
         CfnOutput.Builder.create(this, "DistributionUrl")
                 .description("CloudFront の配信 URL")
                 .value("https://" + distribution.getDistributionDomainName())
                 .build();
 
-        CfnOutput.Builder.create(this, "BucketName")
+        this.bucketNameOutput = CfnOutput.Builder.create(this, "BucketName")
                 .description("作成された S3 バケット名")
                 .value(siteBucket.getBucketName())
+                .build();
+
+        this.distributionIdOutput = CfnOutput.Builder.create(this, "DistributionId")
+                .description("CloudFront ディストリビューション ID（キャッシュ無効化用）")
+                .value(distribution.getDistributionId())
                 .build();
 
         // ------------------------------------------------------------
@@ -210,8 +227,23 @@ public class FrontendStack extends Stack {
                 .build();
     }
 
-    /** CI/CD スタック（PipelineStack）へ渡すための S3 バケットのゲッター。 */
+    /** S3 バケットのゲッター。 */
     public Bucket getSiteBucket() {
         return this.siteBucket;
+    }
+
+    /** CloudFront ディストリビューションのゲッター。 */
+    public Distribution getDistribution() {
+        return this.distribution;
+    }
+
+    /** パイプラインの Post ステップへ渡すバケット名の CfnOutput。 */
+    public CfnOutput getBucketNameOutput() {
+        return this.bucketNameOutput;
+    }
+
+    /** パイプラインの Post ステップへ渡すディストリビューション ID の CfnOutput。 */
+    public CfnOutput getDistributionIdOutput() {
+        return this.distributionIdOutput;
     }
 }

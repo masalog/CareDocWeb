@@ -3,68 +3,36 @@ package com.example.cdk;
 import java.util.List;
 import java.util.Map;
 
-import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.StageProps;
+import software.amazon.awscdk.Environment;
 import software.constructs.Construct;
-import software.amazon.awscdk.services.s3.Bucket;
-import software.amazon.awscdk.services.iam.Role;
-import software.amazon.awscdk.services.iam.ServicePrincipal;
-import software.amazon.awscdk.services.iam.PolicyStatement;
-import software.amazon.awscdk.services.codebuild.PipelineProject;
-import software.amazon.awscdk.services.codebuild.BuildEnvironment;
-import software.amazon.awscdk.services.codebuild.BuildEnvironmentVariable;
-import software.amazon.awscdk.services.codebuild.BuildEnvironmentVariableType;
+import software.amazon.awscdk.pipelines.CodePipeline;
+import software.amazon.awscdk.pipelines.CodePipelineSource;
+import software.amazon.awscdk.pipelines.CodeBuildStep;
+import software.amazon.awscdk.pipelines.ConnectionSourceOptions;
+import software.amazon.awscdk.pipelines.StageDeployment;
 import software.amazon.awscdk.services.codebuild.BuildSpec;
-import software.amazon.awscdk.services.codebuild.ComputeType;
-import software.amazon.awscdk.services.codebuild.LinuxBuildImage;
-import software.amazon.awscdk.services.codepipeline.Pipeline;
-import software.amazon.awscdk.services.codepipeline.PipelineType;
-import software.amazon.awscdk.services.codepipeline.Artifact;
-import software.amazon.awscdk.services.codepipeline.StageOptions;
-import software.amazon.awscdk.services.codepipeline.actions.CodeStarConnectionsSourceAction;
-import software.amazon.awscdk.services.codepipeline.actions.CodeBuildAction;
 import software.amazon.awscdk.services.codestarconnections.CfnConnection;
+import software.amazon.awscdk.services.iam.PolicyStatement;
 
 /**
- * フロントエンド CI/CD スタック。
- * GitHub → CodePipeline → CodeBuild → S3（aws s3 sync）の一連を1スタックで定義する。
+ * CDK Pipelines（セルフミューテーティング）による CI/CD スタック。
  *
- * CodeBuild とパイプラインを同一スタックに置く理由：
- *   パイプラインはアーティファクトバケットへの権限を CodeBuild ロールに付与し、
- *   CodeBuild はパイプラインから参照されるため、別スタックにすると循環依存になる。
+ * main への push で以下がすべて自動実行される：
+ *   1. Synth      : mvn package（Lambda 用 jar 生成）+ cdk synth
+ *   2. SelfMutate : パイプライン自身を最新の定義に更新
+ *   3. Deploy     : BackendStack → FrontendStack を CloudFormation で更新
+ *   4. Post       : 静的ファイルを S3 に sync + CloudFront キャッシュ無効化
+ *
+ * このスタック自体の初回デプロイのみ手元から `cdk deploy` する。
+ * 以降はパイプライン定義の変更も push だけで自己反映される。
  */
 public class PipelineStack extends Stack {
 
-    public PipelineStack(final Construct scope, final String id,
-            Bucket siteBucket, StackProps props) {
+    public PipelineStack(final Construct scope, final String id, final StackProps props) {
         super(scope, id, props);
-
-        // ---- CodeBuild 用 IAM ロール（サイトバケットへの書き込み権限） ----
-        Role codeBuildRole = Role.Builder.create(this, "CareDocWebFrontendBuildRole")
-                .assumedBy(new ServicePrincipal("codebuild.amazonaws.com"))
-                .build();
-
-        codeBuildRole.addToPolicy(PolicyStatement.Builder.create()
-                .actions(List.of("s3:PutObject", "s3:DeleteObject", "s3:GetObject", "s3:ListBucket"))
-                .resources(List.of(siteBucket.getBucketArn(), siteBucket.getBucketArn() + "/*"))
-                .build());
-
-        // ---- CodeBuild プロジェクト ----
-        PipelineProject codeBuildProject = PipelineProject.Builder.create(this, "CareDocWebFrontendBuild")
-                .projectName("CareDocWebFrontendBuild")
-                .environment(BuildEnvironment.builder()
-                        .buildImage(LinuxBuildImage.AMAZON_LINUX_2_5)
-                        .computeType(ComputeType.SMALL)
-                        .environmentVariables(Map.of(
-                                "SITE_BUCKET", BuildEnvironmentVariable.builder()
-                                        .value(siteBucket.getBucketName())
-                                        .type(BuildEnvironmentVariableType.PLAINTEXT)
-                                        .build()))
-                        .build())
-                .buildSpec(BuildSpec.fromSourceFilename("buildspec.yml"))
-                .role(codeBuildRole)
-                .build();
 
         // ---- GitHub 接続（デプロイ後にコンソールで承認が必要） ----
         CfnConnection gitHubConnection = CfnConnection.Builder.create(this, "GitHubConnection")
@@ -72,42 +40,76 @@ public class PipelineStack extends Stack {
                 .providerType("GitHub")
                 .build();
 
-        // ---- パイプライン ----
-        Artifact sourceOutput = new Artifact();
-
-        Pipeline pipeline = Pipeline.Builder.create(this, "CareDocWebFrontendPipeline")
-                .pipelineName("CareDocWebFrontendPipeline")
-                // V2 を明示指定。V1 は未指定時の暗黙デフォルト（警告の原因）。
-                // V2 は実行時間ベースの課金（無料枠あり）で、実行頻度の低い
-                // 本用途では V1 の月額固定課金より安く済む。
-                .pipelineType(PipelineType.V2)
+        // ---- パイプライン本体 ----
+        CodePipeline pipeline = CodePipeline.Builder.create(this, "Pipeline")
+                .pipelineName("CareDocWebPipeline")
+                // Synth ステップ: リポジトリを取得し、アプリの jar をビルドしてから synth する
+                .synth(CodeBuildStep.Builder.create("Synth")
+                        .input(CodePipelineSource.connection(
+                                "masalog/CareDocWeb", "main",
+                                ConnectionSourceOptions.builder()
+                                        .connectionArn(gitHubConnection.getAttrConnectionArn())
+                                        .build()))
+                        // Java 21 を明示（Maven ビルドと synth の両方で使用）
+                        .partialBuildSpec(BuildSpec.fromObject(Map.of(
+                                "phases", Map.of(
+                                        "install", Map.of(
+                                                "runtime-versions", Map.of(
+                                                        "java", "corretto21"))))))
+                        .commands(List.of(
+                                // ① アプリ本体（Spring Boot）をビルドして target/ に jar を生成。
+                                //    BackendStack の Lambda が Code.fromAsset でこの jar を
+                                //    参照するため、synth より前に必ず実行する。
+                                //    テストは外部接続が必要なためスキップ（-DskipTests）。
+                                "mvn -q package -DskipTests",
+                                // ② CDK を synth する
+                                "cd cdk",
+                                "npm install -g aws-cdk",
+                                "cdk synth"))
+                        // cdk.out の場所（リポジトリルートからの相対パス）
+                        .primaryOutputDirectory("cdk/cdk.out")
+                        .build())
                 .build();
 
-        pipeline.addStage(StageOptions.builder()
-                .stageName("Source")
-                .actions(List.of(
-                        CodeStarConnectionsSourceAction.Builder.create()
-                                .actionName("GitHubSource")
-                                .owner("masalog")
-                                .repo("CareDocWeb")
-                                .branch("main")
-                                .connectionArn(gitHubConnection.getAttrConnectionArn())
-                                .output(sourceOutput)
-                                .build()))
+        // ---- アプリケーションステージ（Backend + Frontend）を追加 ----
+        AppStage appStage = new AppStage(this, "App", StageProps.builder()
+                .env(Environment.builder()
+                        .account(this.getAccount())
+                        .region(this.getRegion())
+                        .build())
                 .build());
 
-        pipeline.addStage(StageOptions.builder()
-                .stageName("Build")
-                .actions(List.of(
-                        CodeBuildAction.Builder.create()
-                                .actionName("BuildFrontend")
-                                .project(codeBuildProject)
-                                .input(sourceOutput)
+        StageDeployment deployment = pipeline.addStage(appStage);
+
+        // ---- Post ステップ: 静的ファイルの S3 配置 + CloudFront 無効化 ----
+        // バケット名と Distribution ID は FrontendStack の CfnOutput から
+        // 環境変数として注入される（クロスステージ参照の正規の方法）。
+        deployment.addPost(CodeBuildStep.Builder.create("DeployStaticFiles")
+                .envFromCfnOutputs(Map.of(
+                        "SITE_BUCKET", appStage.getFrontend().getBucketNameOutput(),
+                        "DISTRIBUTION_ID", appStage.getFrontend().getDistributionIdOutput()))
+                .commands(List.of(
+                        // 事前検証（環境変数と同期元の存在チェック）
+                        "test -n \"${SITE_BUCKET}\" || { echo 'ERROR: SITE_BUCKET is empty'; exit 1; }",
+                        "test -n \"${DISTRIBUTION_ID}\" || { echo 'ERROR: DISTRIBUTION_ID is empty'; exit 1; }",
+                        "test -d src/main/resources/static && [ -n \"$(ls -A src/main/resources/static)\" ] || { echo 'ERROR: static dir missing or empty'; exit 1; }",
+                        // 同期 + キャッシュ無効化
+                        "aws s3 sync src/main/resources/static \"s3://${SITE_BUCKET}\" --delete",
+                        "aws cloudfront create-invalidation --distribution-id \"${DISTRIBUTION_ID}\" --paths \"/*\""))
+                .rolePolicyStatements(List.of(
+                        PolicyStatement.Builder.create()
+                                .actions(List.of("s3:PutObject", "s3:DeleteObject",
+                                        "s3:GetObject", "s3:ListBucket"))
+                                // バケットはステージ内で生成されるため synth 時点で ARN 不明。
+                                // 命名規則（<stack名小文字>-sitebucket*）でスコープを絞る。
+                                .resources(List.of(
+                                        "arn:aws:s3:::caredocwebfrontendstack-sitebucket*",
+                                        "arn:aws:s3:::caredocwebfrontendstack-sitebucket*/*"))
+                                .build(),
+                        PolicyStatement.Builder.create()
+                                .actions(List.of("cloudfront:CreateInvalidation"))
+                                .resources(List.of("*"))
                                 .build()))
                 .build());
-
-        CfnOutput.Builder.create(this, "CodeBuildProjectName")
-                .value(codeBuildProject.getProjectName())
-                .build();
     }
 }
