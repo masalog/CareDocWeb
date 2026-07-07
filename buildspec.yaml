@@ -1,0 +1,8 @@
+version: 0.2
+
+phases:
+  build:
+    commands:
+      - echo "Uploading static files to S3"
+      - aws s3 sync src/main/resources/static s3://$SITE_BUCKET --delete
+
