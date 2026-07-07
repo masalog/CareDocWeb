@@ -211,27 +211,39 @@ function loadMembers() {
         .then(members => {
             const container = document.getElementById('member-list');
             if (members.length === 0) {
-                container.innerHTML = '<p>登録されている利用者がいません。</p>';
+                const p = document.createElement('p');
+                p.textContent = '登録されている利用者がいません。';
+                container.replaceChildren(p);
                 return;
             }
+            // 各セルはescapeHtmlでエスケープし、操作ボタンはonclick属性を使わず
+            // dataset + addEventListener でバインドすることで属性インジェクションを根本排除する
             let html = `<table class="member-table">
                 <thead><tr>
                     <th>氏名</th><th>フリガナ</th><th>介護度</th><th>被保険者番号</th><th>操作</th>
                 </tr></thead><tbody>`;
             members.forEach(m => {
                 html += `<tr>
-                    <td>${m.name}</td>
-                    <td>${m.furigana || ''}</td>
-                    <td>${m.careLevel || ''}</td>
-                    <td>${m.insuranceIdNumber || ''}</td>
+                    <td>${escapeHtml(m.name)}</td>
+                    <td>${escapeHtml(m.furigana)}</td>
+                    <td>${escapeHtml(m.careLevel)}</td>
+                    <td>${escapeHtml(m.insuranceIdNumber)}</td>
                     <td class="actions">
-                        <button class="btn btn-edit" onclick="editMember('${m.id}')">編集</button>
-                        <button class="btn btn-danger" onclick="deleteMember('${m.id}', '${m.name}')">削除</button>
+                        <button class="btn btn-edit" data-id="${escapeHtml(m.id)}" data-action="edit">編集</button>
+                        <button class="btn btn-danger" data-id="${escapeHtml(m.id)}" data-name="${escapeHtml(m.name)}" data-action="delete">削除</button>
                     </td>
                 </tr>`;
             });
             html += '</tbody></table>';
             container.innerHTML = html;
+
+            // 操作ボタンにイベントを委譲でバインド（インラインJSを使わない）
+            container.querySelectorAll('button[data-action="edit"]').forEach(btn => {
+                btn.addEventListener('click', () => editMember(btn.dataset.id));
+            });
+            container.querySelectorAll('button[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', () => deleteMember(btn.dataset.id, btn.dataset.name));
+            });
         });
 }
 
@@ -390,23 +402,16 @@ function initSettingsDateGroup(prefix) {
 
     const currentYear = new Date().getFullYear();
 
-    // 年：当年を基準に過去10年〜翌年まで（空欄を先頭に）
-    yearSelect.innerHTML = '<option value="">--</option>';
-    for (let y = currentYear + 1; y >= currentYear - 10; y--) {
-        const option = document.createElement('option');
-        option.value = y;
-        option.textContent = y + '年';
-        yearSelect.appendChild(option);
+    // 年：当年を基準に過去30年〜翌年まで（空欄を先頭に）
+    yearSelect.replaceChildren(createOption('', '--'));
     for (let y = currentYear + 1; y >= currentYear - 30; y--) {
+        yearSelect.appendChild(createOption(y, y + '年'));
     }
 
     // 月：1〜12月（空欄を先頭に）
-    monthSelect.innerHTML = '<option value="">--</option>';
+    monthSelect.replaceChildren(createOption('', '--'));
     for (let m = 1; m <= 12; m++) {
-        const option = document.createElement('option');
-        option.value = m;
-        option.textContent = m + '月';
-        monthSelect.appendChild(option);
+        monthSelect.appendChild(createOption(m, m + '月'));
     }
 
     // 年・月変更時に日を再生成
@@ -436,12 +441,9 @@ function updateSettingsDayOptions(prefix) {
     const lastDay = (year && month) ? new Date(year, month, 0).getDate() : 31;
 
     const prevDay = parseInt(daySelect.value) || null;
-    daySelect.innerHTML = '<option value="">--</option>';
+    daySelect.replaceChildren(createOption('', '--'));
     for (let d = 1; d <= lastDay; d++) {
-        const option = document.createElement('option');
-        option.value = d;
-        option.textContent = d + '日';
-        daySelect.appendChild(option);
+        daySelect.appendChild(createOption(d, d + '日'));
     }
 
     // 以前の選択日を可能な範囲で維持（末日超過時はクリア）
