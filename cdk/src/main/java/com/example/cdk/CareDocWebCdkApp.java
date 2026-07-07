@@ -25,7 +25,7 @@ public class CareDocWebCdkApp {
                 .build();
 
         // バックエンド（Lambda + API Gateway）スタックを先に定義。
-        // 依存方向は Backend → Frontend の一方向（設計書どおり）。
+        // 依存方向は Backend → Frontend → Pipeline の一方向。
         BackendStack backend = new BackendStack(app, "CareDocWebBackendStack", StackProps.builder()
                 .env(env)
                 .description("CareDocWeb バックエンド（Lambda + API Gateway）")
@@ -33,13 +33,21 @@ public class CareDocWebCdkApp {
 
         // フロントエンド（S3 + CloudFront）スタックを定義。
         // BackendStack の API Gateway を CloudFront の /api/* オリジンとして渡す。
-        // これにより CloudFront が唯一の公開エンドポイントとなり、
-        // /* → S3、/api/* → API Gateway に振り分けられる。
-        new FrontendStack(app, "CareDocWebFrontendStack",
+        FrontendStack frontend = new FrontendStack(app, "CareDocWebFrontendStack",
                 backend.getApi(),
                 StackProps.builder()
                         .env(env)
                         .description("CareDocWeb フロントエンド配信（S3 + CloudFront・/api/* を API Gateway へ統合）")
+                        .build());
+
+        // CI/CD: GitHub → CodePipeline → CodeBuild → S3 の一連を1スタックで定義。
+        // CodeBuild とパイプラインを分けると循環依存になるため同一スタックにまとめる。
+        // FrontendStack の静的サイト用バケットを渡し、CodeBuild に書き込み権限を付与する。
+        new PipelineStack(app, "CareDocWebPipelineStack",
+                frontend.getSiteBucket(),
+                StackProps.builder()
+                        .env(env)
+                        .description("CareDocWeb フロントエンド CI/CD パイプライン（GitHub → CodeBuild → S3）")
                         .build());
 
         // CloudFormation テンプレートを合成して終了。
