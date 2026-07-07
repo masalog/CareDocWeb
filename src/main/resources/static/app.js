@@ -373,7 +373,16 @@ function deleteMember(id, name) {
  *
  * @param {string} prefix - 各selectのid接頭辞（例: 's-institution' → s-institution-year/month/day）
  */
+
+// 年月日プルダウンの初期化済みフラグ
+const settingsDateInitFlags = {};
+
 function initSettingsDateGroup(prefix) {
+
+    // すでに初期化済みなら何もしない（イベントリスナーの重複防止）
+    if (settingsDateInitFlags[prefix]) return;
+    settingsDateInitFlags[prefix] = true;
+
     const yearSelect = document.getElementById(prefix + '-year');
     const monthSelect = document.getElementById(prefix + '-month');
     const daySelect = document.getElementById(prefix + '-day');
