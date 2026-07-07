@@ -52,6 +52,9 @@ class CommonSettingsControllerTest {
         sampleSettings.setFacilityPhone("03-3333-4444");
         sampleSettings.setInstitutionName("中央病院");
         sampleSettings.setInstitutionAddress("東京都中央区銀座4-4-4");
+        sampleSettings.setInstitutionYear(2026);
+        sampleSettings.setInstitutionMonth(3);
+        sampleSettings.setInstitutionDay(15);
         sampleSettings.setAgentName("山田一郎");
         sampleSettings.setAgentPostal("104-0061");
         sampleSettings.setAgentAddress("東京都中央区銀座5-5-5");
@@ -106,6 +109,9 @@ class CommonSettingsControllerTest {
                     .andExpect(jsonPath("$.facilityPhone").value("03-3333-4444"))
                     .andExpect(jsonPath("$.institutionName").value("中央病院"))
                     .andExpect(jsonPath("$.institutionAddress").value("東京都中央区銀座4-4-4"))
+                    .andExpect(jsonPath("$.institutionYear").value(2026))
+                    .andExpect(jsonPath("$.institutionMonth").value(3))
+                    .andExpect(jsonPath("$.institutionDay").value(15))
                     .andExpect(jsonPath("$.agentName").value("山田一郎"))
                     .andExpect(jsonPath("$.agentPostal").value("104-0061"))
                     .andExpect(jsonPath("$.agentAddress").value("東京都中央区銀座5-5-5"))
@@ -206,7 +212,45 @@ class CommonSettingsControllerTest {
                     .andExpect(jsonPath("$.clinicName").value("新クリニック"));
         }
 
+        @Test
+        @DisplayName("正常系: 入院・入所年月日を更新して200で返す")
+        void returns200_withInstitutionDateUpdated() throws Exception {
+            // 準備
+            sampleSettings.setInstitutionYear(2025);
+            sampleSettings.setInstitutionMonth(12);
+            sampleSettings.setInstitutionDay(31);
+            when(commonSettingsService.save(any(CommonSettings.class))).thenReturn(sampleSettings);
+
+            // 実行 & 検証
+            mockMvc.perform(put("/api/settings")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(sampleSettings)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.institutionYear").value(2025))
+                    .andExpect(jsonPath("$.institutionMonth").value(12))
+                    .andExpect(jsonPath("$.institutionDay").value(31));
+        }
+
         // --- 境界値 ---
+
+        @Test
+        @DisplayName("境界値: 入院・入所年月日をNULLに更新できる")
+        void returns200_withInstitutionDateNull() throws Exception {
+            // 準備
+            sampleSettings.setInstitutionYear(null);
+            sampleSettings.setInstitutionMonth(null);
+            sampleSettings.setInstitutionDay(null);
+            when(commonSettingsService.save(any(CommonSettings.class))).thenReturn(sampleSettings);
+
+            // 実行 & 検証
+            mockMvc.perform(put("/api/settings")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(sampleSettings)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.institutionYear").isEmpty())
+                    .andExpect(jsonPath("$.institutionMonth").isEmpty())
+                    .andExpect(jsonPath("$.institutionDay").isEmpty());
+        }
 
         @Test
         @DisplayName("境界値: 一部フィールドをNULLに更新できる")
