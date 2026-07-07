@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      # バケット名が未設定・空なら即失敗させる（s3:// への sync 事故を防ぐ）
+      - |
+        if [ -z "${SITE_BUCKET}" ]; then
+          echo "ERROR: SITE_BUCKET is not set or empty."
+          exit 1
+        fi
+      # 同期元が存在しない・空なら即失敗させる（--delete による全削除事故を防ぐ）
+      - |
+        if [ ! -d "src/main/resources/static" ] || [ -z "$(ls -A src/main/resources/static)" ]; then
+          echo "ERROR: src/main/resources/static is missing or empty. Aborting to prevent --delete from wiping the bucket."
+          exit 1
+        fi
+  build:
+    commands:
+      - echo "Uploading static files to S3"
+      - aws s3 sync src/main/resources/static "s3://${SITE_BUCKET}" --delete
