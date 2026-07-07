@@ -57,12 +57,9 @@ public class PipelineStack extends Stack {
                                                 "runtime-versions", Map.of(
                                                         "java", "corretto21"))))))
                         .commands(List.of(
-                                // ① アプリ本体（Spring Boot）をビルドして target/ に jar を生成。
-                                //    BackendStack の Lambda が Code.fromAsset でこの jar を
-                                //    参照するため、synth より前に必ず実行する。
-                                //    テストは外部接続が必要なためスキップ（-DskipTests）。
-                                "mvn -q package -DskipTests",
-                                // ② CDK を synth する
+                                // アプリのビルド + テスト実行。テスト失敗時はここでパイプラインが
+                                // 停止し、壊れたコードのデプロイを防ぐ(CI の防波堤)
+                                "mvn -q package",   // ← -DskipTests を削除
                                 "cd cdk",
                                 "npm install -g aws-cdk",
                                 "cdk synth"))
