@@ -57,9 +57,9 @@ public class PipelineStack extends Stack {
                                                 "runtime-versions", Map.of(
                                                         "java", "corretto21"))))))
                         .commands(List.of(
-                                // アプリのビルド + テスト実行。テスト失敗時はここでパイプラインが
-                                // 停止し、壊れたコードのデプロイを防ぐ(CI の防波堤)
-                                "mvn -q package",   // ← -DskipTests を削除
+                                // アプリのビルド + テスト実行。テスト失敗時はここでパイプラインが停止する。
+                                // -q は付けない: テスト結果(Tests run: ...)をビルドログに証跡として残すため
+                                "mvn package",
                                 "cd cdk",
                                 "npm install -g aws-cdk",
                                 "cdk synth"))
