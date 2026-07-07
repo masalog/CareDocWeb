@@ -30,6 +30,12 @@ import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.constructs.Construct;
+import software.amazon.awscdk.services.s3.assets.Asset;
+import software.amazon.awscdk.customresources.AwsCustomResource;
+import software.amazon.awscdk.customresources.AwsCustomResourcePolicy;
+import software.amazon.awscdk.customresources.AwsSdkCall;
+import software.amazon.awscdk.customresources.PhysicalResourceId;
+import software.amazon.awscdk.services.iam.PolicyStatement;
 
 /**
  * フロントエンド静的ホスティング用スタック。
@@ -97,16 +103,40 @@ public class FrontendStack extends Stack {
 
         // ------------------------------------------------------------
         // 3. フロントエンドファイルを S3 にデプロイ
-        //    src/main/resources/static/ の内容をアップロードし、
-        //    デプロイ時に CloudFront キャッシュを無効化する。
         // ------------------------------------------------------------
-        BucketDeployment.Builder.create(this, "DeployStaticFiles")
-                .sources(List.of(Source.asset("../src/main/resources/static")))
-                .destinationBucket(siteBucket)
-                // デプロイ後に CloudFront の全パスのキャッシュを無効化
-                .distribution(distribution)
-                .distributionPaths(List.of("/*"))
-                .build();
+
+        // ❌ BucketDeployment は削除（AWS CLI レイヤーによる脆弱性の原因）
+        //    Asset も削除（Java CDK では BucketDeployment と組み合わせると壊れる）
+
+        // ------------------------------------------------------------
+        // 3.1 CloudFront キャッシュ無効化（Custom Resource による置き換え）
+        // ------------------------------------------------------------
+
+        // CloudFront キャッシュ無効化をデプロイ時に実行する Custom Resource
+                AwsCustomResource invalidation = AwsCustomResource.Builder.create(this, "CloudFrontInvalidation")
+                        .onCreate(AwsSdkCall.builder()
+                                .service("CloudFront")
+                                .action("createInvalidation")
+                                .parameters(Map.of(
+                                        "DistributionId", distribution.getDistributionId(),
+                                        "InvalidationBatch", Map.of(
+                                                "CallerReference", String.valueOf(System.currentTimeMillis()),
+                                                "Paths", Map.of(
+                                                        "Quantity", 1,
+                                                        "Items", List.of("/*")   // ← キャッシュ無効化パス
+                                                )
+                                        )
+                                ))
+                                // デプロイごとに一意の ID を付与
+                                .physicalResourceId(PhysicalResourceId.of("Invalidate-" + distribution.getDistributionId()))
+                                .build())
+                        .policy(AwsCustomResourcePolicy.fromStatements(List.of(
+                                PolicyStatement.Builder.create()
+                                        .actions(List.of("cloudfront:CreateInvalidation"))
+                                        .resources(List.of("*"))   // CloudFront は ARN が特殊なので *
+                                        .build()
+                        )))
+                        .build();
 
         // ------------------------------------------------------------
         // 4. 出力（デプロイ後にターミナルへ表示）
