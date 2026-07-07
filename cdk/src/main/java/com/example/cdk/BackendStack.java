@@ -7,13 +7,8 @@ import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
-import software.amazon.awscdk.services.apigateway.ApiKey;
 import software.amazon.awscdk.services.apigateway.LambdaRestApi;
-import software.amazon.awscdk.services.apigateway.Period;
-import software.amazon.awscdk.services.apigateway.QuotaSettings;
-import software.amazon.awscdk.services.apigateway.ThrottleSettings;
-import software.amazon.awscdk.services.apigateway.UsagePlan;
-import software.amazon.awscdk.services.apigateway.UsagePlanPerApiStage;
+import software.amazon.awscdk.services.apigateway.StageOptions;
 import software.amazon.awscdk.services.lambda.Alias;
 import software.amazon.awscdk.services.lambda.Code;
 import software.amazon.awscdk.services.lambda.Function;
@@ -34,8 +29,9 @@ import software.constructs.Construct;
  * API Gateway は REST API（LambdaRestApi）を使用。aws-cdk-lib 本体に含まれる
  * 安定 API で、全パスを Lambda にプロキシ統合する。
  *
- * デモ公開向けに、使用量プラン（レート制限・日次クォータ・API キー）を設定し、
- * 不正な大量リクエストによるコスト増を防止する。
+ * デモ公開向けのコスト保護として、ステージレベルのスロットリング
+ * （秒間レート・バースト制限）を設定し、不正な大量リクエストによる
+ * コスト増を防止する。
  *
  * DB 接続情報（URL・ユーザー名・パスワード）はすべて方式Bで統一し、
  * Lambda 実行時にアプリが SSM から取得する。環境変数にはパラメータ名のみを渡す。
@@ -122,49 +118,25 @@ public class BackendStack extends Stack {
                 // "*/*" を指定すると、クライアントの Accept ヘッダーに応じて
                 // API Gateway が Base64 を自動デコードしてバイナリを返す。
                 .binaryMediaTypes(List.of("*/*"))
-                .build();
-
-        // ------------------------------------------------------------
-        // 6. デモ用の使用量プラン（レート制限・日次クォータ・API キー）
-        //    不正な大量アクセスによるコスト増を防止する
-        // ------------------------------------------------------------
-        // API キーを発行（フロントエンドが x-api-key ヘッダーで送信する想定）
-        ApiKey apiKey = ApiKey.Builder.create(this, "DemoApiKey")
-                .apiKeyName("caredocweb-demo-key")
-                .build();
-
-        // 使用量プラン：秒間レート・バースト・日次クォータを設定
-        UsagePlan usagePlan = UsagePlan.Builder.create(this, "DemoUsagePlan")
-                .name("caredocweb-demo-plan")
-                .throttle(ThrottleSettings.builder()
-                        .rateLimit(10)   // 秒間 10 リクエスト
-                        .burstLimit(20)  // バースト 20 リクエスト
+                // デモ公開向けのコスト保護：ステージ全体にスロットリングを適用。
+                // 旧構成の「使用量プラン + API キー」は、メソッド側で apiKeyRequired を
+                // 設定していないため“キー無しリクエストには効かない”飾りになっていた。
+                // ステージレベルの制限は全リクエストに無条件で効くため、こちらで置き換える。
+                // （この置き換えにより、Stage 移行で論理 ID が変わった UsagePlanKey の
+                //   409 競合も解消される）
+                .deployOptions(StageOptions.builder()
+                        .throttlingRateLimit(10)    // 秒間 10 リクエスト
+                        .throttlingBurstLimit(20)   // バースト 20 リクエスト
                         .build())
-                .quota(QuotaSettings.builder()
-                        .limit(1000)          // 1 日 1000 リクエストまで
-                        .period(Period.DAY)
-                        .build())
-                .apiStages(List.of(UsagePlanPerApiStage.builder()
-                        .api(api)
-                        .stage(api.getDeploymentStage())
-                        .build()))
                 .build();
 
-        // API キーを使用量プランに紐付け
-        usagePlan.addApiKey(apiKey);
-
         // ------------------------------------------------------------
-        // 7. 出力
+        // 6. 出力
         // ------------------------------------------------------------
         CfnOutput.Builder.create(this, "ApiUrl")
                 .description("API Gateway のエンドポイント URL")
                 .value(api.getUrl())
                 .exportName("CareDocWebApiUrl")
-                .build();
-
-        CfnOutput.Builder.create(this, "ApiKeyId")
-                .description("API キーの ID（値は AWS コンソール/CLI で取得）")
-                .value(apiKey.getKeyId())
                 .build();
     }
 
