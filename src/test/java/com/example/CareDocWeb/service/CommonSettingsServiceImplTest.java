@@ -402,14 +402,15 @@ class CommonSettingsServiceImplTest {
         @DisplayName("異常系: NULLのエンティティを渡した場合、リポジトリに委譲される")
         void throwsException_whenEntityIsNull() {
             // 準備
+            CommonSettings nullSettings = null;
             when(commonSettingsRepository.findAll()).thenReturn(Collections.emptyList());
-            when(commonSettingsRepository.save(null))
+            when(commonSettingsRepository.save(nullSettings))
                     .thenThrow(new IllegalArgumentException("エンティティがnullです"));
 
             // 実行 & 検証
             assertThrows(IllegalArgumentException.class,
-                    () -> commonSettingsService.save(null));
-            verify(commonSettingsRepository, times(1)).save(null);
+                    () -> commonSettingsService.save(nullSettings));
+            verify(commonSettingsRepository, times(1)).save(nullSettings);
         }
 
         @Test
