@@ -27,10 +27,7 @@ import software.amazon.awscdk.services.events.Schedule;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.BucketEncryption;
-import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
-import software.amazon.awscdk.services.s3.deployment.Source;
 import software.constructs.Construct;
-import software.amazon.awscdk.services.s3.assets.Asset;
 import software.amazon.awscdk.customresources.AwsCustomResource;
 import software.amazon.awscdk.customresources.AwsCustomResourcePolicy;
 import software.amazon.awscdk.customresources.AwsSdkCall;
@@ -47,14 +44,17 @@ import software.amazon.awscdk.services.iam.PolicyStatement;
  */
 public class FrontendStack extends Stack {
 
+    /** 静的サイト用 S3 バケット。CI/CD（PipelineStack）から参照する。 */
+    private final Bucket siteBucket;
+
     public FrontendStack(final Construct scope, final String id,
-                         final LambdaRestApi api, final StackProps props) {
+            final LambdaRestApi api, final StackProps props) {
         super(scope, id, props);
 
         // ------------------------------------------------------------
         // 1. S3 バケット（静的ファイル格納・完全非公開）
         // ------------------------------------------------------------
-        Bucket siteBucket = Bucket.Builder.create(this, "SiteBucket")
+        this.siteBucket = Bucket.Builder.create(this, "SiteBucket")
                 // パブリックアクセスを全てブロック（CloudFront 経由のみアクセス可）
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 // サーバーサイド暗号化（S3 マネージドキー）
@@ -102,41 +102,47 @@ public class FrontendStack extends Stack {
                 .build();
 
         // ------------------------------------------------------------
-        // 3. フロントエンドファイルを S3 にデプロイ
+        // 3. フロントエンドファイルのデプロイは CI/CD（CodePipeline → CodeBuild →
+        //    aws s3 sync）で行うため、このスタックでは実施しない。
         // ------------------------------------------------------------
 
-        // ❌ BucketDeployment は削除（AWS CLI レイヤーによる脆弱性の原因）
-        //    Asset も削除（Java CDK では BucketDeployment と組み合わせると壊れる）
-
         // ------------------------------------------------------------
-        // 3.1 CloudFront キャッシュ無効化（Custom Resource による置き換え）
+        // 3.1 CloudFront キャッシュ無効化（Custom Resource）
+        //     onCreate: スタック初回作成時に実行
+        //     onUpdate: スタック更新のたびに実行
+        //     CallerReference に System.currentTimeMillis() を使っているため
+        //     synth のたびにプロパティが変化し、cdk deploy ごとに onUpdate が
+        //     確実に発火する（プロパティ変化がないと onUpdate は呼ばれないため）。
         // ------------------------------------------------------------
 
-        // CloudFront キャッシュ無効化をデプロイ時に実行する Custom Resource
-                AwsCustomResource invalidation = AwsCustomResource.Builder.create(this, "CloudFrontInvalidation")
-                        .onCreate(AwsSdkCall.builder()
-                                .service("CloudFront")
-                                .action("createInvalidation")
-                                .parameters(Map.of(
-                                        "DistributionId", distribution.getDistributionId(),
-                                        "InvalidationBatch", Map.of(
-                                                "CallerReference", String.valueOf(System.currentTimeMillis()),
-                                                "Paths", Map.of(
-                                                        "Quantity", 1,
-                                                        "Items", List.of("/*")   // ← キャッシュ無効化パス
-                                                )
-                                        )
-                                ))
-                                // デプロイごとに一意の ID を付与
-                                .physicalResourceId(PhysicalResourceId.of("Invalidate-" + distribution.getDistributionId()))
-                                .build())
-                        .policy(AwsCustomResourcePolicy.fromStatements(List.of(
-                                PolicyStatement.Builder.create()
-                                        .actions(List.of("cloudfront:CreateInvalidation"))
-                                        .resources(List.of("*"))   // CloudFront は ARN が特殊なので *
-                                        .build()
-                        )))
-                        .build();
+        // onCreate / onUpdate で共通の SDK 呼び出し定義
+        AwsSdkCall invalidationCall = AwsSdkCall.builder()
+                .service("CloudFront")
+                .action("createInvalidation")
+                .parameters(Map.of(
+                        "DistributionId", distribution.getDistributionId(),
+                        "InvalidationBatch", Map.of(
+                                "CallerReference", String.valueOf(System.currentTimeMillis()),
+                                "Paths", Map.of(
+                                        "Quantity", 1,
+                                        "Items", List.of("/*")   // ← キャッシュ無効化パス
+                                )
+                        )
+                ))
+                // 物理 ID は固定にする（変えるとリソースの置き換え＝Delete が走るため）
+                .physicalResourceId(PhysicalResourceId.of("Invalidate-" + distribution.getDistributionId()))
+                .build();
+
+        AwsCustomResource invalidation = AwsCustomResource.Builder.create(this, "CloudFrontInvalidation")
+                .onCreate(invalidationCall)
+                .onUpdate(invalidationCall)   // ← スタック更新時にも同じ無効化を実行
+                .policy(AwsCustomResourcePolicy.fromStatements(List.of(
+                        PolicyStatement.Builder.create()
+                                .actions(List.of("cloudfront:CreateInvalidation"))
+                                .resources(List.of("*"))   // CloudFront は ARN が特殊なので *
+                                .build()
+                )))
+                .build();
 
         // ------------------------------------------------------------
         // 4. 出力（デプロイ後にターミナルへ表示）
@@ -185,11 +191,6 @@ public class FrontendStack extends Stack {
                 .build();
 
         // EventBridge Rule（定期実行 + API Destination ターゲット）。
-        // EventBridge Scheduler は API Destination をターゲットに直接指定できず
-        //（arn:aws:events:...:api-destination/... は「not in correct format」で弾かれる）、
-        // HTTPS 外部 URL を叩くのは EventBridge Rule の領分。
-        // targets.ApiDestination を使うと、InvokeApiDestination 権限を持つ
-        // IAM ロールは CDK が自動生成するため、ロールの手動定義は不要。
         Rule.Builder.create(this, "WarmupRule")
                 // 5分間隔で実行する。
                 // 10分間隔では SnapStart の実行環境がリクエストの合間に破棄され、
@@ -198,9 +199,6 @@ public class FrontendStack extends Stack {
                 // 月約8,640回でも Lambda 無料枠（月100万）の1%未満で無料枠内。
                 .schedule(Schedule.rate(Duration.minutes(5)))
                 .description("Lambda を定期的に温める（5分間隔・CloudFront 経由 /api/health）")
-                // events.ApiDestination（Connection/宛先を定義した construct）を
-                // events.targets.ApiDestination でラップして Rule のターゲットにする。
-                // import 名の衝突を避けるため targets 側は完全修飾名で指定する。
                 .targets(List.of(
                         new software.amazon.awscdk.services.events.targets.ApiDestination(
                                 warmupDestination)))
@@ -210,5 +208,10 @@ public class FrontendStack extends Stack {
                 .description("ウォームアップで叩く CloudFront 経由の health URL")
                 .value(warmupUrl)
                 .build();
+    }
+
+    /** CI/CD スタック（PipelineStack）へ渡すための S3 バケットのゲッター。 */
+    public Bucket getSiteBucket() {
+        return this.siteBucket;
     }
 }
