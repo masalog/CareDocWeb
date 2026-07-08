@@ -60,7 +60,7 @@ function loadMemberSelect() {
 
             option.value = m.id;
             option.textContent =
-                `${m.name}（${m.careLevel || '未設定'}）`;
+                `${m.name}様（${m.careLevel || '未設定'}）`;
 
             select.appendChild(option);
         });
