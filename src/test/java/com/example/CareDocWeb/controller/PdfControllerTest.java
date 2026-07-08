@@ -25,6 +25,11 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import org.springframework.http.HttpHeaders;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 /**
  * {@link PdfController} の統合テスト。
  *
@@ -85,6 +90,7 @@ class PdfControllerTest {
         @Test
         @DisplayName("200を返しContent-TypeがPDFである")
         void returns200_withPdfContentType() throws Exception {
+
             // 準備
             Member member = createSampleMember();
             CommonSettings settings = createSampleSettings();
@@ -92,12 +98,31 @@ class PdfControllerTest {
 
             when(memberService.findById(sampleMemberId)).thenReturn(member);
             when(commonSettingsService.find()).thenReturn(settings);
-            when(pdfService.generate(any(Member.class), any(CommonSettings.class), any(PdfGenerateRequest.class)))
+            when(pdfService.generate(
+                    any(Member.class),
+                    any(CommonSettings.class),
+                    any(PdfGenerateRequest.class)))
                     .thenReturn(fakePdf);
 
             PdfGenerateRequest request = new PdfGenerateRequest(
-                    sampleMemberId, validYear, 7, 2, "状態悪化のため"
+                    sampleMemberId,
+                    validYear,
+                    7,
+                    2,
+                    "状態悪化のため"
             );
+
+            String expectedFileName =
+                    String.format(
+                            "%04d年7月2日 田中太郎様 介護認定申請書.pdf",
+                            validYear
+                    );
+
+            String encodedFileName =
+                    URLEncoder.encode(
+                            expectedFileName,
+                            StandardCharsets.UTF_8
+                    ).replace("+", "%20");
 
             // 実行 & 検証
             mockMvc.perform(post("/api/pdf/generate")
@@ -105,7 +130,10 @@ class PdfControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_PDF))
-                    .andExpect(header().string("Content-Disposition", "attachment; filename=output.pdf"));
+                    .andExpect(header().string(
+                            HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename*=UTF-8''" + encodedFileName
+                    ));
 
             verify(memberService, times(1)).findById(sampleMemberId);
             verify(commonSettingsService, times(1)).find();
@@ -199,6 +227,49 @@ class PdfControllerTest {
         }
     }
 
+    @Test
+    @DisplayName("利用者名と申請年月日を含むファイル名を返す")
+    void returnsFileNameWithMemberNameAndApplicationDate() throws Exception {
+
+        Member member = createSampleMember();
+        CommonSettings settings = createSampleSettings();
+
+        when(memberService.findById(sampleMemberId)).thenReturn(member);
+        when(commonSettingsService.find()).thenReturn(settings);
+        when(pdfService.generate(any(), any(), any()))
+                .thenReturn("%PDF-1.4".getBytes());
+
+        PdfGenerateRequest request =
+                new PdfGenerateRequest(
+                        sampleMemberId,
+                        validYear,
+                        7,
+                        2,
+                        null
+                );
+
+        String expectedFileName =
+                String.format(
+                        "%04d年7月2日 田中太郎様 介護認定申請書.pdf",
+                        validYear
+                );
+
+        String encodedFileName =
+                URLEncoder.encode(
+                        expectedFileName,
+                        StandardCharsets.UTF_8
+                ).replace("+", "%20");
+
+        mockMvc.perform(post("/api/pdf/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename*=UTF-8''" + encodedFileName
+                ));
+    }
+
     // ========================================
     // 境界値
     // ========================================
@@ -276,6 +347,49 @@ class PdfControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk());
         }
+    }
+
+    @Test
+    @DisplayName("月日が1桁の場合はゼロ埋めしないファイル名を返す")
+    void returnsFileNameWithoutZeroPadding() throws Exception {
+
+        Member member = createSampleMember();
+        CommonSettings settings = createSampleSettings();
+
+        when(memberService.findById(sampleMemberId)).thenReturn(member);
+        when(commonSettingsService.find()).thenReturn(settings);
+        when(pdfService.generate(any(), any(), any()))
+                .thenReturn("%PDF-1.4".getBytes());
+
+        PdfGenerateRequest request =
+                new PdfGenerateRequest(
+                        sampleMemberId,
+                        validYear,
+                        1,
+                        1,
+                        null
+                );
+
+        String expectedFileName =
+                String.format(
+                        "%04d年1月1日 田中太郎様 介護認定申請書.pdf",
+                        validYear
+                );
+
+        String encodedFileName =
+                URLEncoder.encode(
+                        expectedFileName,
+                        StandardCharsets.UTF_8
+                ).replace("+", "%20");
+
+        mockMvc.perform(post("/api/pdf/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename*=UTF-8''" + encodedFileName
+                ));
     }
 
     // ========================================

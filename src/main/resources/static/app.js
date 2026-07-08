@@ -60,7 +60,7 @@ function loadMemberSelect() {
 
             option.value = m.id;
             option.textContent =
-                `${m.name}（${m.careLevel || '未設定'}）`;
+                `${m.name}様（${m.careLevel || '未設定'}）`;
 
             select.appendChild(option);
         });
@@ -176,19 +176,49 @@ function generatePdf() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
     })
-    .then(res => {
-        if (!res.ok) throw new Error('PDF生成に失敗しました');
-        return res.blob();
+    .then(async res => {
+
+        if (!res.ok) {
+            throw new Error('PDF生成に失敗しました');
+        }
+
+        const blob = await res.blob();
+
+        const disposition =
+            res.headers.get('Content-Disposition');
+
+        let fileName = 'output.pdf';
+
+        if (disposition) {
+
+            const match =
+                disposition.match(/filename\*=UTF-8''(.+)/);
+
+            if (match) {
+                fileName = decodeURIComponent(match[1]);
+            }
+        }
+
+        return { blob, fileName };
     })
-    .then(blob => {
-        // Blobからダウンロードリンクを生成して自動クリック
+    .then(({ blob, fileName }) => {
+
         const url = window.URL.createObjectURL(blob);
+
         const a = document.createElement('a');
+
         a.href = url;
-        a.download = 'output.pdf';
+        a.download = fileName;
+
         a.click();
+
         window.URL.revokeObjectURL(url);
-        showMessage('pdf-message', 'PDFを生成しました', 'success');
+
+        showMessage(
+            'pdf-message',
+            'PDFを生成しました',
+            'success'
+        );
     })
     .catch(err => {
         showMessage('pdf-message', err.message, 'error');
