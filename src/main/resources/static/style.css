@@ -247,3 +247,30 @@ h3 {
     display: flex;
     gap: 5px;
 }
+
+
+/* PDF生成中メッセージ */
+.pdf-action-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pdf-status {
+    color: #3498db;
+    font-size: 14px;
+    display: none;
+    white-space: nowrap;
+}
+
+.pdf-status.loading::before {
+    content: " ";
+}
+
+.pdf-status.success {
+    color: #27ae60;
+}
+
+.pdf-status.error {
+    color: #e74c3c;
+}

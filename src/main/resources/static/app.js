@@ -1,22 +1,6 @@
 // ========================================
 // セクション切り替え
 // ========================================
-
-/**
- * HTMLエスケープ（XSS対策）
- */
-
-function escapeHtml(value) {
-    if (value === null || value === undefined) return '';
-
-    return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 /**
  * 表示セクションを切り替える
  * @param {string} name - セクション名 ('members' | 'settings')
@@ -91,7 +75,7 @@ function initDateSelects() {
     yearSelect.innerHTML = '';
     [currentYear, currentYear + 1].forEach(y => {
         const option = document.createElement('option');
-        option.value = y;
+        option.value = String(y);
         option.textContent = `${y}年`;
         yearSelect.appendChild(option);
     });
@@ -100,7 +84,7 @@ function initDateSelects() {
     monthSelect.innerHTML = '';
     for (let m = 1; m <= 12; m++) {
         const option = document.createElement('option');
-        option.value = m;
+        option.value = String(m);
         option.textContent = `${m}月`;
         monthSelect.appendChild(option);
     }
@@ -125,21 +109,34 @@ function updateDayOptions() {
     const monthSelect = document.getElementById('app-month');
     const daySelect = document.getElementById('app-day');
 
-    const year = parseInt(yearSelect.value);
-    const month = parseInt(monthSelect.value);
-    const lastDay = new Date(year, month, 0).getDate(); // その月の末日
+    if (!yearSelect || !monthSelect || !daySelect) {
+        return;
+    }
 
-    const prevDay = parseInt(daySelect.value) || 1;
-    daySelect.innerHTML = '';
+    const year = parseInt(yearSelect.value, 10);
+    const month = parseInt(monthSelect.value, 10);
+
+    // その月の末日を取得
+    const lastDay = new Date(year, month, 0).getDate();
+
+    // 現在選択されている日
+    const prevDay = parseInt(daySelect.value, 10) || 1;
+
+    // 選択肢をクリア
+    daySelect.replaceChildren();
+
+    // 日の選択肢を生成
     for (let d = 1; d <= lastDay; d++) {
         const option = document.createElement('option');
-        option.value = d;
+        option.value = String(d);
         option.textContent = `${d}日`;
         daySelect.appendChild(option);
     }
 
-    // 以前の選択日を可能な範囲で維持（末日超過時は末日に丸める）
-    daySelect.value = Math.min(prevDay, lastDay);
+    // 前回選択していた日を復元
+    daySelect.value = String(
+        Math.min(prevDay, lastDay)
+    );
 }
 
 // ページ読み込み時に日付セレクトを初期化
@@ -155,65 +152,97 @@ function generatePdf() {
     const applicationYear = parseInt(document.getElementById('app-year').value);
     const applicationMonth = parseInt(document.getElementById('app-month').value);
     const applicationDay = parseInt(document.getElementById('app-day').value);
-    const changeReason = document.getElementById('change-reason').value || null;
+    const changeReason =
+        document.getElementById('change-reason').value || null;
 
     // バリデーション
     if (!memberId) {
-        showMessage('pdf-message', '利用者を選択してください', 'error');
+        showMessage(
+            'pdf-message',
+            '利用者を選択してください',
+            'error'
+        );
         return;
     }
+
     if (!applicationYear || !applicationMonth || !applicationDay) {
-        showMessage('pdf-message', '申請年月日を入力してください', 'error');
+        showMessage(
+            'pdf-message',
+            '申請年月日を入力してください',
+            'error'
+        );
         return;
     }
 
-    // リクエストボディ組み立て
-    const body = { memberId, applicationYear, applicationMonth, applicationDay, changeReason };
+    const btn = document.getElementById('pdf-generate-btn');
+    const msg = document.getElementById('pdf-loading-message');
 
-    // PDF生成APIを呼び出し
+    // ボタン無効化
+    btn.disabled = true;
+    btn.textContent = 'PDF生成中...';
+
+    // 生成中メッセージ（ボタン右横）
+    msg.style.display = 'inline-block';
+    msg.className = 'pdf-status loading';
+    msg.textContent =
+        'PDFを生成しています。しばらくお待ちください...';
+
+    const body = {
+        memberId,
+        applicationYear,
+        applicationMonth,
+        applicationDay,
+        changeReason
+    };
+
     fetch('/api/pdf/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify(body)
     })
     .then(async res => {
-
         if (!res.ok) {
             throw new Error('PDF生成に失敗しました');
         }
 
         const blob = await res.blob();
 
+        let fileName = 'output.pdf';
+
         const disposition =
             res.headers.get('Content-Disposition');
 
-        let fileName = 'output.pdf';
-
         if (disposition) {
-
             const match =
                 disposition.match(/filename\*=UTF-8''(.+)/);
 
             if (match) {
-                fileName = decodeURIComponent(match[1]);
+                fileName =
+                    decodeURIComponent(match[1]);
             }
         }
 
         return { blob, fileName };
     })
     .then(({ blob, fileName }) => {
+        const url =
+            window.URL.createObjectURL(blob);
 
-        const url = window.URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
+        const a =
+            document.createElement('a');
 
         a.href = url;
         a.download = fileName;
 
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
 
         window.URL.revokeObjectURL(url);
 
+        // 成功メッセージは従来の場所へ表示
         showMessage(
             'pdf-message',
             'PDFを生成しました',
@@ -221,7 +250,22 @@ function generatePdf() {
         );
     })
     .catch(err => {
-        showMessage('pdf-message', err.message, 'error');
+        // エラーメッセージも従来の場所へ表示
+        showMessage(
+            'pdf-message',
+            err.message,
+            'error'
+        );
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.textContent =
+            'PDF生成・ダウンロード';
+
+        // ボタン横メッセージを消す
+        msg.style.display = 'none';
+        msg.textContent = '';
+        msg.className = 'pdf-status';
     });
 }
 
