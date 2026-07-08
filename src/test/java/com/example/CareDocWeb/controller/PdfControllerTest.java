@@ -349,6 +349,49 @@ class PdfControllerTest {
         }
     }
 
+    @Test
+    @DisplayName("月日が1桁の場合はゼロ埋めしないファイル名を返す")
+    void returnsFileNameWithoutZeroPadding() throws Exception {
+
+        Member member = createSampleMember();
+        CommonSettings settings = createSampleSettings();
+
+        when(memberService.findById(sampleMemberId)).thenReturn(member);
+        when(commonSettingsService.find()).thenReturn(settings);
+        when(pdfService.generate(any(), any(), any()))
+                .thenReturn("%PDF-1.4".getBytes());
+
+        PdfGenerateRequest request =
+                new PdfGenerateRequest(
+                        sampleMemberId,
+                        validYear,
+                        1,
+                        1,
+                        null
+                );
+
+        String expectedFileName =
+                String.format(
+                        "%04d年1月1日 田中太郎様 介護認定申請書.pdf",
+                        validYear
+                );
+
+        String encodedFileName =
+                URLEncoder.encode(
+                        expectedFileName,
+                        StandardCharsets.UTF_8
+                ).replace("+", "%20");
+
+        mockMvc.perform(post("/api/pdf/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename*=UTF-8''" + encodedFileName
+                ));
+    }
+
     // ========================================
     // 異常系
     // ========================================
