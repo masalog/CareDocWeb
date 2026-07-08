@@ -40,7 +40,16 @@
                     <label for="change-reason">変更更新理由</label>
                     <input type="text" id="change-reason" name="changeReason" placeholder="変更更新の場合のみ入力してください">
                 </div>
-                <button type="button" class="btn btn-primary" onclick="generatePdf()">PDF生成・ダウンロード</button>
+                <div class="pdf-action-row">
+                    <button
+                        id="pdf-generate-btn"
+                        type="button"
+                        class="btn btn-primary"
+                        onclick="generatePdf()">
+                        PDF生成・ダウンロード
+                    </button>
+                    <span id="pdf-loading-message" class="pdf-status"></span>
+                </div>
             </form>
             <div id="pdf-message" class="message"></div>
         </section>
