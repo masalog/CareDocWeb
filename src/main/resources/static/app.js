@@ -3,6 +3,21 @@
 // ========================================
 
 /**
+ * HTMLエスケープ（XSS対策）
+ */
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+
+    return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * 表示セクションを切り替える
  * @param {string} name - セクション名 ('members' | 'settings')
  * @param {HTMLElement} btn - クリックされたナビボタン要素
@@ -29,14 +44,27 @@ function showSection(name, btn) {
  */
 function loadMemberSelect() {
     fetch('/api/members')
-        .then(res => res.json())
-        .then(members => {
-            const select = document.getElementById('member-select');
-            select.innerHTML = '<option value="">-- 選択してください --</option>';
-            members.forEach(m => {
-                select.innerHTML += `<option value="${m.id}">${m.name}（${m.careLevel || '未設定'}）</option>`;
-            });
+    .then(res => res.json())
+    .then(members => {
+        const select = document.getElementById('member-select');
+
+        select.replaceChildren();
+
+        const firstOption = document.createElement('option');
+        firstOption.value = '';
+        firstOption.textContent = '-- 選択してください --';
+        select.appendChild(firstOption);
+
+        members.forEach(m => {
+            const option = document.createElement('option');
+
+            option.value = m.id;
+            option.textContent =
+                `${m.name}（${m.careLevel || '未設定'}）`;
+
+            select.appendChild(option);
         });
+    });
 }
 
 // ========================================
@@ -177,32 +205,137 @@ function generatePdf() {
  */
 function loadMembers() {
     fetch('/api/members')
-        .then(res => res.json())
-        .then(members => {
-            const container = document.getElementById('member-list');
-            if (members.length === 0) {
-                container.innerHTML = '<p>登録されている利用者がいません。</p>';
-                return;
-            }
-            let html = `<table class="member-table">
-                <thead><tr>
-                    <th>氏名</th><th>フリガナ</th><th>介護度</th><th>被保険者番号</th><th>操作</th>
-                </tr></thead><tbody>`;
-            members.forEach(m => {
-                html += `<tr>
-                    <td>${m.name}</td>
-                    <td>${m.furigana || ''}</td>
-                    <td>${m.careLevel || ''}</td>
-                    <td>${m.insuranceIdNumber || ''}</td>
-                    <td class="actions">
-                        <button class="btn btn-edit" onclick="editMember('${m.id}')">編集</button>
-                        <button class="btn btn-danger" onclick="deleteMember('${m.id}', '${m.name}')">削除</button>
-                    </td>
-                </tr>`;
-            });
-            html += '</tbody></table>';
-            container.innerHTML = html;
+    .then(res => res.json())
+    .then(members => {
+
+        const container = document.getElementById('member-list');
+
+        // コンテナ初期化
+        container.replaceChildren();
+
+        if (members.length === 0) {
+            const p = document.createElement('p');
+            p.textContent = '登録されている利用者がいません。';
+            container.appendChild(p);
+            return;
+        }
+
+        // table
+        const table = document.createElement('table');
+        table.className = 'member-table';
+
+        // thead
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+
+        const headers = [
+            '氏名',
+            'フリガナ',
+            '介護度',
+            '被保険者番号',
+            '操作'
+        ];
+
+        headers.forEach(text => {
+            const th = document.createElement('th');
+            th.textContent = text;
+            headerRow.appendChild(th);
         });
+
+        thead.appendChild(headerRow);
+
+        // tbody
+        const tbody = document.createElement('tbody');
+
+        members.forEach(m => {
+
+            const tr = document.createElement('tr');
+
+            // 氏名
+            const nameTd = document.createElement('td');
+            nameTd.textContent = m.name || '';
+            tr.appendChild(nameTd);
+
+            // フリガナ
+            const furiganaTd = document.createElement('td');
+            furiganaTd.textContent = m.furigana || '';
+            tr.appendChild(furiganaTd);
+
+            // 介護度
+            const careLevelTd = document.createElement('td');
+            careLevelTd.textContent = m.careLevel || '';
+            tr.appendChild(careLevelTd);
+
+            // 被保険者番号
+            const insuranceTd = document.createElement('td');
+            insuranceTd.textContent =
+                m.insuranceIdNumber || '';
+            tr.appendChild(insuranceTd);
+
+            // 操作列
+            const actionTd = document.createElement('td');
+            actionTd.className = 'actions';
+
+            // 編集ボタン
+            const editBtn =
+                document.createElement('button');
+
+            editBtn.className =
+                'btn btn-edit';
+
+            editBtn.type = 'button';
+
+            editBtn.textContent = '編集';
+
+            editBtn.addEventListener('click', () => {
+                editMember(m.id);
+            });
+
+            // 削除ボタン
+            const deleteBtn =
+                document.createElement('button');
+
+            deleteBtn.className =
+                'btn btn-danger';
+
+            deleteBtn.type = 'button';
+
+            deleteBtn.textContent = '削除';
+
+            deleteBtn.addEventListener('click', () => {
+                deleteMember(
+                    m.id,
+                    m.name || ''
+                );
+            });
+
+            actionTd.appendChild(editBtn);
+            actionTd.appendChild(deleteBtn);
+
+            tr.appendChild(actionTd);
+
+            tbody.appendChild(tr);
+        });
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+
+        container.appendChild(table);
+    })
+    .catch(err => {
+        console.error(err);
+
+        const container =
+            document.getElementById('member-list');
+
+        container.replaceChildren();
+
+        const p = document.createElement('p');
+        p.textContent =
+            '利用者一覧の取得に失敗しました。';
+
+        container.appendChild(p);
+    });
 }
 
 /**
