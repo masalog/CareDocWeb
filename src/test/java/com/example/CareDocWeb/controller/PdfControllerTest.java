@@ -227,6 +227,49 @@ class PdfControllerTest {
         }
     }
 
+    @Test
+    @DisplayName("利用者名と申請年月日を含むファイル名を返す")
+    void returnsFileNameWithMemberNameAndApplicationDate() throws Exception {
+
+        Member member = createSampleMember();
+        CommonSettings settings = createSampleSettings();
+
+        when(memberService.findById(sampleMemberId)).thenReturn(member);
+        when(commonSettingsService.find()).thenReturn(settings);
+        when(pdfService.generate(any(), any(), any()))
+                .thenReturn("%PDF-1.4".getBytes());
+
+        PdfGenerateRequest request =
+                new PdfGenerateRequest(
+                        sampleMemberId,
+                        validYear,
+                        7,
+                        2,
+                        null
+                );
+
+        String expectedFileName =
+                String.format(
+                        "%04d年7月2日 田中太郎様 介護認定申請書.pdf",
+                        validYear
+                );
+
+        String encodedFileName =
+                URLEncoder.encode(
+                        expectedFileName,
+                        StandardCharsets.UTF_8
+                ).replace("+", "%20");
+
+        mockMvc.perform(post("/api/pdf/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename*=UTF-8''" + encodedFileName
+                ));
+    }
+
     // ========================================
     // 境界値
     // ========================================
