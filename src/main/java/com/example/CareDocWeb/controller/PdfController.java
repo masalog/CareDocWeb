@@ -6,8 +6,8 @@ import com.example.CareDocWeb.entity.Member;
 import com.example.CareDocWeb.service.CommonSettingsService;
 import com.example.CareDocWeb.service.MemberService;
 import com.example.CareDocWeb.service.PdfService;
-import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +15,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * PDF生成コントローラー。
@@ -38,12 +41,34 @@ public class PdfController {
      */
     @PostMapping("/generate")
     public ResponseEntity<byte[]> generate(@Valid @RequestBody PdfGenerateRequest request) {
+
         Member member = memberService.findById(request.getMemberId());
         CommonSettings settings = commonSettingsService.find();
         byte[] pdf = pdfService.generate(member, settings, request);
 
+        String applicationDate = String.format(
+                "%04d年%d月%d日",
+                request.getApplicationYear(),
+                request.getApplicationMonth(),
+                request.getApplicationDay()
+        );
+
+        String fileName =
+                applicationDate
+                        + " "
+                        + member.getName()
+                        + "様 介護認定申請書.pdf";
+
+        String encodedFileName = URLEncoder.encode(
+                fileName,
+                StandardCharsets.UTF_8
+        ).replace("+", "%20");
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=output.pdf")
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename*=UTF-8''" + encodedFileName
+                )
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
     }
