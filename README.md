@@ -8,7 +8,7 @@ PDF に転記して作成するための Web アプリケーションです。<b
 **https://dre5onrtbrgty.cloudfront.net**
 
 ## ✨ 主な機能
-- プルダウンから名前と申請年月日を選択を指定
+- プルダウンから名前と申請年月日を選択
 - 変更更新理由の入力（変更更新の場合のみ）
 - 利用者の登録・編集・削除（管理画面から）
 - 共通データ（事業所・担当者情報）の編集
@@ -45,7 +45,7 @@ S3（HTML + CSS + JavaScript／非公開バケット）
                                  Supabase（PostgreSQL）
 ```
 
-> CloudFront を単一の公開エンドポイントとして使用し、
+> CloudFront を公開エンドポイントとして使用し、
 > 静的コンテンツは S3、API リクエストは API Gateway + Lambda へルーティングする。
 > フロントエンドの JavaScript (app.js) が `/api/*` を通じて、バックエンド API を呼び出す。
 
@@ -57,7 +57,7 @@ CareDocWeb/
 │   ├── CareDocWeb API設計書.md
 │   ├── CareDocWeb DB設計書.md
 │   ├── CareDocWeb PDF生成サービス実装方針.md
-│   ├── CareDocWeb インフラ設計書.md
+│   ├── CareDocWeb インフラ設計書（CDK）.md
 │   └── CareDocWeb 要件定義書.md
 ├── src/
 │   ├── main/
@@ -215,7 +215,7 @@ mvn clean test
 | CloudFront | HTTPS配信・CDN。OAC で S3 へのアクセスを制御 |
 | Lambda + API Gateway | Spring Boot API を REST API で公開（SnapStart・使用量プラン） |
 
-> CloudFront を唯一の公開エンドポイントとし、`/*` は S3、`/api/*` は API Gateway へ
+> CloudFront を公開エンドポイントとし、`/*` は S3、`/api/*` は API Gateway へ
 > ルーティングする統合が完了済み。フロントとAPIが同一オリジンのため CORS 不要。
 
 ## 🏗 ビルド・実行方法
