@@ -251,12 +251,6 @@ mvn clean package -DskipTests
 
 `target/CareDocWeb-0.0.1-SNAPSHOT.jar` が生成されます。
 
-### 動作確認
-
-アプリ起動後：
-- `http://localhost:8080/api/members` — 利用者一覧（JSON）
-- `http://localhost:8080/h2-console` — H2コンソール（localプロファイルのみ）
-
 ### PDF生成の動作確認
 
 ```powershell
