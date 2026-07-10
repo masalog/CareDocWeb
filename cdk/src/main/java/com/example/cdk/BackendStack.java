@@ -69,7 +69,13 @@ public class BackendStack extends Stack {
                         "SPRING_PROFILES_ACTIVE", "prod",
                         "DB_URL_PARAM", dbUrlParamName,
                         "DB_USERNAME_PARAM", dbUsernameParamName,
-                        "DB_PASSWORD_PARAM", dbPasswordParamName))
+                        "DB_PASSWORD_PARAM", dbPasswordParamName,
+                        // SSM の値変更をスナップショットに反映させるためのバンプ用。
+                        // SnapStart は「バージョン公開時」に起動処理を実行して凍結するため、
+                        // SSM だけ変えても既存バージョンのスナップショットには反映されない。
+                        // DB 接続先を変更した際はこの値を上げ、CFN 差分を発生させて
+                        // 新バージョンの公開(=再スナップショット)を強制する。
+                        "CONFIG_VERSION", "2"))
                 .build();
 
         // ------------------------------------------------------------
