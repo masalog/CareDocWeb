@@ -8,7 +8,7 @@ info:
     利用者データ・共通設定は JSON、PDF生成は application/pdf を返す。
 
 servers:
-  - url: https://your-cloudfront-domain.example.com
+  - url: https://dre5onrtbrgty.cloudfront.net
 
 paths:
   /api/members:
