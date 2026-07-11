@@ -87,7 +87,7 @@ PDF生成        → Content-Type: application/pdf（バイナリ）
 ## オリジン設定（CloudFront統合により CORS 不要）
 
 ```
-CloudFront を唯一の公開エンドポイントとし、静的配信（S3）と
+CloudFront を公開エンドポイントとし、静的配信（S3）と
 API（API Gateway → Lambda）を同一ドメイン配下に統合する。
 
 フロントとAPIが同一オリジン（CloudFrontのドメイン）となるため、
