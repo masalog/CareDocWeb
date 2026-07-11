@@ -170,7 +170,7 @@ mvn clean test
 | 4     | Lambda SnapStart + API Gateway（REST API）を CDK でデプロイ                                        | ✅ 完了                                                                                        |
 | 5     | CloudFront から `/api/*` を API Gateway へルーティング（同一オリジン化・CORS不要）+ PDF等バイナリ配信（binaryMediaTypes） | ✅ 完了 |
 | 6     | SnapStartエイリアス化でコールドスタート改善 + 定期ウォームアップ（EventBridge cron → /api/health）                     | ✅ 完了                                                                                        |
-| 7     | CodeBuile と CodePipline で CI/CD を実現                                                        | ✅ 完了                                                                                        |
+| 7     | CodeBuild と CodePipeline で CI/CD を実現                                                       | ✅ 完了                                                                                        |
 
 ## ☁️ インフラ（AWS CDK）
 
