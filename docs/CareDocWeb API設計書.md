@@ -56,7 +56,7 @@ GET    /api/health          死活監視・ウォームアップ用
 { "status": "ok", "db": "up" }   // DB接続を connection.isValid で確認
 
 ※ DB接続に失敗しても 200 + db:"down" を返す（ウォームアップ用途のため
-  エンドポイント自体は生かす）。GitHub Actions cron から定期的に叩き、
+  エンドポイント自体は生かす）。EventBridge cron から定期的に叩き、
   Lambda をアイドル回収させずウォーム状態に保つ。
 ```
 
@@ -87,7 +87,7 @@ PDF生成        → Content-Type: application/pdf（バイナリ）
 ## オリジン設定（CloudFront統合により CORS 不要）
 
 ```
-CloudFront を唯一の公開エンドポイントとし、静的配信（S3）と
+CloudFront を公開エンドポイントとし、静的配信（S3）と
 API（API Gateway → Lambda）を同一ドメイン配下に統合する。
 
 フロントとAPIが同一オリジン（CloudFrontのドメイン）となるため、

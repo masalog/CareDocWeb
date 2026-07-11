@@ -1,0 +1,305 @@
+openapi: 3.0.1
+info:
+  title: CareDoc Web API
+  version: 1.0.0
+  description: |
+    CareDoc Web版の REST API 仕様書。
+    Java 21 + Spring Boot 4.x（Lambda + API Gateway）で稼働。
+    利用者データ・共通設定は JSON、PDF生成は application/pdf を返す。
+
+servers:
+  - url: https://dre5onrtbrgty.cloudfront.net
+
+paths:
+  /api/members:
+    get:
+      summary: 利用者一覧取得
+      responses:
+        '200':
+          description: 利用者一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+
+    post:
+      summary: 利用者登録
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Member'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+
+  /api/members/{id}:
+    get:
+      summary: 利用者詳細取得
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 利用者詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '404':
+          description: 利用者が存在しません
+
+    put:
+      summary: 利用者更新
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Member'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '404':
+          description: 利用者が存在しません
+
+    delete:
+      summary: 利用者削除
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+        '404':
+          description: 利用者が存在しません
+
+  /api/settings:
+    get:
+      summary: 共通設定取得
+      responses:
+        '200':
+          description: 共通設定
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommonSettings'
+
+    put:
+      summary: 共通設定更新
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommonSettings'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommonSettings'
+
+  /api/pdf/generate:
+    post:
+      summary: PDF生成
+      description: 利用者情報と申請日を元に PDF を生成して返す
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdfRequest'
+      responses:
+        '200':
+          description: PDFファイル
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /api/health:
+    get:
+      summary: ヘルスチェック
+      description: Lambda のウォームアップ用途。DB接続結果も返す。
+      responses:
+        '200':
+          description: システム正常
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+components:
+  schemas:
+
+    # -------------------------
+    # 利用者（members）
+    # -------------------------
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        insuranceIdNumber:
+          type: string
+        name:
+          type: string
+        furigana:
+          type: string
+        birthYear:
+          type: integer
+        birthMonth:
+          type: integer
+        birthDay:
+          type: integer
+        gender:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        careLevel:
+          type: string
+        startYear:
+          type: integer
+        startMonth:
+          type: integer
+        startDay:
+          type: integer
+        endYear:
+          type: integer
+          nullable: true
+        endMonth:
+          type: integer
+          nullable: true
+        endDay:
+          type: integer
+          nullable: true
+        institutionYear:
+          type: integer
+          nullable: true
+        institutionMonth:
+          type: integer
+          nullable: true
+        institutionDay:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # -------------------------
+    # 共通設定（common_settings）
+    # -------------------------
+    CommonSettings:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        surveyAddress:
+          type: string
+        surveyPhone:
+          type: string
+        facilityName:
+          type: string
+        facilityPhone:
+          type: string
+        institutionName:
+          type: string
+        institutionAddress:
+          type: string
+        agentName:
+          type: string
+        agentPostal:
+          type: string
+        agentAddress:
+          type: string
+        agentPhone:
+          type: string
+        doctorName:
+          type: string
+        clinicName:
+          type: string
+        clinicPostal:
+          type: string
+        clinicAddress:
+          type: string
+        clinicPhone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # -------------------------
+    # PDF生成リクエスト
+    # -------------------------
+    PdfRequest:
+      type: object
+      required:
+        - memberId
+        - applicationYear
+        - applicationMonth
+        - applicationDay
+      properties:
+        memberId:
+          type: string
+          format: uuid
+        applicationYear:
+          type: integer
+        applicationMonth:
+          type: integer
+        applicationDay:
+          type: integer
+        changeReason:
+          type: string
+          nullable: true
+
+    # -------------------------
+    # ヘルスチェック
+    # -------------------------
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        db:
+          type: string
+          example: up
