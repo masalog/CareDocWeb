@@ -32,20 +32,9 @@ APIドキュメント（OpenAPI / Swagger UI）
 | ビルド | Maven 4 |
 | 開発環境 | IntelliJ IDEA Community Edition |
 
-## 📐 システム構成
+## 📐 システム構成図
 
-```
-ブラウザ
-   ↓ HTTPS
-CloudFront（CDN + HTTPS）
-   ↓ OAC（Origin Access Control）
-S3（HTML + CSS + JavaScript／非公開バケット）
-   ┄┄ fetch API リクエスト ┄┄→ API Gateway（REST API + 使用量プラン）
-                                    ↓
-                                 Lambda（Spring Boot + SnapStart）
-                                    ↓ JPA / SSM（接続情報を実行時取得）
-                                 Supabase（PostgreSQL）
-```
+![システム構成図](docs/CareDocWeb_システム構成図.drawio.png)
 
 ## 📂 プロジェクト構成
 
