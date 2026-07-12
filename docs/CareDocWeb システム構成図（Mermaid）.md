@@ -7,11 +7,14 @@ CloudFront が唯一の公開エンドポイント。`/*` は S3 の静的ファ
 ```mermaid
 flowchart TD
     User([ユーザー]) --> CF["CloudFront<br/>(HTTPS 配信・単一入口)"]
-    EB["EventBridge<br/>(5分毎ウォームアップ)"] --> APIDEST["API Destination<br/>(HTTPS)"]
-    APIDEST -.->|/api/health| CF
+
+    EB["EventBridge<br/>(5分毎ウォームアップ)"] -->|/api/health| CF
+    
     CF -->|"/*"| S3["S3 サイトバケット<br/>(静的ファイル・非公開/OAC)"]
     CF -->|"/api/*"| APIGW["API Gateway<br/>(REST・ステージスロットリング)"]
+
     APIGW -->|alias: live| Lambda["Lambda<br/>(Spring Boot・SnapStart)"]
+
     Lambda -->|接続情報取得| SSM["SSM Parameter Store<br/>(DB 接続情報)"]
     Lambda --> DB[("Supabase<br/>(PostgreSQL)")]
 ```
