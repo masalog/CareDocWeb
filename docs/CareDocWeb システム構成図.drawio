@@ -46,7 +46,7 @@
         <mxCell id="yyhGtK5sCjrV0Rg-nRSX-14" edge="1" parent="1" source="yyhGtK5sCjrV0Rg-nRSX-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#7AA116;fontSize=11;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" target="yyhGtK5sCjrV0Rg-nRSX-7" value="/*（デフォルトビヘイビア）&#xa;OAC経由のみ許可">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="yyhGtK5sCjrV0Rg-nRSX-15" edge="1" parent="1" source="yyhGtK5sCjrV0Rg-nRSX-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#E7157B;fontSize=11;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" target="yyhGtK5sCjrV0Rg-nRSX-9" value="&lt;br&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;">
+        <mxCell id="yyhGtK5sCjrV0Rg-nRSX-15" edge="1" parent="1" source="yyhGtK5sCjrV0Rg-nRSX-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=`#E7157B`;fontSize=11;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" target="yyhGtK5sCjrV0Rg-nRSX-9" value="/api/*（キャッシュ無効）">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="yyhGtK5sCjrV0Rg-nRSX-16" edge="1" parent="1" source="yyhGtK5sCjrV0Rg-nRSX-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#ED7100;fontSize=11;" target="yyhGtK5sCjrV0Rg-nRSX-10" value="エイリアス &quot;live&quot; を呼び出し&#xa;（SnapStart有効化）">
