@@ -34,7 +34,7 @@ APIドキュメント（OpenAPI / Swagger UI）
 
 ## 📐 システム構成図
 
-![システム構成図](docs/CareDocWeb システム構成図.drawio.png)
+![システム構成図](docs/CareDocWeb_システム構成図.drawio.png)
 
 ## 📂 プロジェクト構成
 
