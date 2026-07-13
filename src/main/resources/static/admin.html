@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CareDocWeb - 管理画面</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6/dist/amazon-cognito-identity.min.js"></script>
 </head>
 <body>
     <header>
@@ -12,6 +13,23 @@
         <p>利用者データ・共通設定の管理</p>
         <a href="index.html" class="admin-link">← PDF生成に戻る</a>
     </header>
+
+    <!-- ログインオーバーレイ(認証前はこれだけ表示) -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>管理者ログイン</h2>
+            <div class="form-group">
+                <label for="login-email">メールアドレス</label>
+                <input type="email" id="login-email" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="login-password">パスワード</label>
+                <input type="password" id="login-password" autocomplete="current-password">
+            </div>
+            <button type="button" class="btn btn-primary" onclick="doLogin()">ログイン</button>
+            <div id="login-message" class="message"></div>
+        </div>
+    </div>
 
     <nav>
         <button class="nav-btn active" onclick="showSection('members', this)">利用者管理</button>
@@ -232,11 +250,6 @@
     </main>
 
     <script src="app.js"></script>
-    <script>
-        // 管理画面初期ロード
-        document.addEventListener('DOMContentLoaded', () => {
-            loadMembers();
-        });
-    </script>
+    <script src="auth.js"></script>
 </body>
 </html>
