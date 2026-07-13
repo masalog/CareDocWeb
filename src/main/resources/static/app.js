@@ -521,7 +521,10 @@ function saveMember() {
  */
 function editMember(id) {
     authFetch(`/api/admin/members/${encodeURIComponent(id)}`)
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) throw new Error('利用者情報の取得に失敗しました');
+        return res.json();
+        })
     .then(m => {
         document.getElementById('member-form-container').classList.remove('hidden');
         document.getElementById('member-form-title').textContent = '利用者編集';
@@ -542,7 +545,10 @@ function editMember(id) {
         document.getElementById('m-end-year').value = m.endYear || '';
         document.getElementById('m-end-month').value = m.endMonth || '';
         document.getElementById('m-end-day').value = m.endDay || '';
-    });
+    })
+    .catch(err => {
+        showMessage('member-message', err.message, 'error');
+        });
 }
 
 /**
