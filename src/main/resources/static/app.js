@@ -5,11 +5,19 @@
  * Authorization ヘッダー付きの fetch。
  * auth.js(admin.html のみ読み込み)の getIdToken() からトークンを取得する。
  * index.html では auth.js が無いため、この関数は管理系 API 専用。
- * @param {string} url - リクエスト先URL
+ *
+ * トークン漏洩防止のため、宛先は同一オリジンの管理API(/api/admin/ 配下)に
+ * 限定する。絶対URLや管理API以外のパスを渡した場合は例外を投げる。
+ * @param {string} url - リクエスト先(/api/admin/ で始まる相対パスのみ許可)
  * @param {object} options - fetch オプション
  * @returns {Promise<Response>}
  */
 function authFetch(url, options = {}) {
+    // 同一オリジンの管理APIのみ許可(トークンの外部送信を構造的に防ぐ)
+    if (typeof url !== 'string' || !url.startsWith('/api/admin/')) {
+        throw new Error('authFetch は /api/admin/ 配下のパスのみ許可されています: ' + url);
+    }
+
     const headers = { ...(options.headers || {}) };
     if (typeof getIdToken === 'function') {
         const token = getIdToken();
@@ -484,7 +492,7 @@ function saveMember() {
     }
 
     const method = id ? 'PUT' : 'POST';
-    const url = id ? `/api/admin/members/${id}` : '/api/admin/members';
+    const url = id ? `/api/admin/members/${encodeURIComponent(id)}` : '/api/admin/members';
 
     authFetch(url, {
         method: method,
@@ -512,7 +520,7 @@ function saveMember() {
  * @param {string} id - 編集対象の利用者ID
  */
 function editMember(id) {
-    authFetch(`/api/admin/members/${id}`)
+    authFetch(`/api/admin/members/${encodeURIComponent(id)}`)
     .then(res => res.json())
     .then(m => {
         document.getElementById('member-form-container').classList.remove('hidden');
@@ -546,7 +554,7 @@ function editMember(id) {
 function deleteMember(id, name) {
     if (!confirm(`「${name}」を削除しますか？`)) return;
 
-    authFetch(`/api/admin/members/${id}`, { method: 'DELETE' })
+    authFetch(`/api/admin/members/${encodeURIComponent(id)}`, { method: 'DELETE' })
     .then(res => {
         if (!res.ok) throw new Error('削除に失敗しました');
         showMessage('member-message', `「${name}」を削除しました`, 'success');
