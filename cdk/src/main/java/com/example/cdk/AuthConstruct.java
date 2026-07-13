@@ -6,6 +6,7 @@ import software.amazon.awscdk.services.cognito.SignInAliases;
 import software.amazon.awscdk.services.cognito.UserPool;
 import software.amazon.awscdk.services.cognito.UserPoolClient;
 import software.constructs.Construct;
+import software.amazon.awscdk.services.cognito.PasswordPolicy;
 
 /**
  * 管理画面用の Cognito 認証基盤。
@@ -23,6 +24,13 @@ public class AuthConstruct extends Construct {
                 .userPoolName("caredocweb-admin")
                 .selfSignUpEnabled(false)
                 .signInAliases(SignInAliases.builder().email(true).build())
+                .passwordPolicy(PasswordPolicy.builder()
+                        .minLength(8)
+                        .requireLowercase(true)
+                        .requireUppercase(true)
+                        .requireDigits(true)
+                        .requireSymbols(false)　// 記号は不要とする
+                        .build())
                 .build();
 
         // スタック削除時もユーザー情報を残す(誤削除対策)
