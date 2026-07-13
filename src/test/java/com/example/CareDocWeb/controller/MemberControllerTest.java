@@ -28,6 +28,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>{@code @WebMvcTest} を使用し、HTTPリクエスト/レスポンスの観点から
  * コントローラー層の動作を検証する。サービス層はモック化する。</p>
+ *
+ * <p>利用者APIは2系統に分かれている：</p>
+ * <ul>
+ *   <li>公開API {@code GET /api/members} — index.html が使用（認証不要）</li>
+ *   <li>管理API {@code /api/admin/members/**} — admin.html 専用。
+ *       API Gateway の Cognito Authorizer により認証必須（認証はインフラ層の
+ *       責務であり、本テストではパスマッピングとコントローラーの動作のみ検証する）</li>
+ * </ul>
  */
 @WebMvcTest(MemberController.class)
 class MemberControllerTest {
@@ -65,7 +73,7 @@ class MemberControllerTest {
     }
 
     // ========================================
-    // GET /api/members
+    // GET /api/members（公開API・認証不要）
     // ========================================
 
     @Nested
@@ -123,11 +131,11 @@ class MemberControllerTest {
     }
 
     // ========================================
-    // GET /api/members/{id}
+    // GET /api/admin/members/{id}（管理API）
     // ========================================
 
     @Nested
-    @DisplayName("GET /api/members/{id}")
+    @DisplayName("GET /api/admin/members/{id}")
     class FindById {
 
         // --- 正常系 ---
@@ -139,7 +147,7 @@ class MemberControllerTest {
             when(memberService.findById(sampleId)).thenReturn(sampleMember);
 
             // 実行 & 検証
-            mockMvc.perform(get("/api/members/{id}", sampleId))
+            mockMvc.perform(get("/api/admin/members/{id}", sampleId))
                     .andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$.id").value(sampleId.toString()))
@@ -162,7 +170,7 @@ class MemberControllerTest {
                     .thenThrow(new com.example.CareDocWeb.exception.ResourceNotFoundException("利用者が見つかりません: " + nonExistentId));
 
             // 実行 & 検証
-            mockMvc.perform(get("/api/members/{id}", nonExistentId))
+            mockMvc.perform(get("/api/admin/members/{id}", nonExistentId))
                     .andExpect(status().isNotFound());
         }
 
@@ -170,17 +178,17 @@ class MemberControllerTest {
         @DisplayName("異常系: 不正なID形式の場合、400を返す")
         void returns400_whenInvalidIdFormat() throws Exception {
             // 実行 & 検証
-            mockMvc.perform(get("/api/members/{id}", "invalid-uuid"))
+            mockMvc.perform(get("/api/admin/members/{id}", "invalid-uuid"))
                     .andExpect(status().isBadRequest());
         }
     }
 
     // ========================================
-    // POST /api/members
+    // POST /api/admin/members（管理API）
     // ========================================
 
     @Nested
-    @DisplayName("POST /api/members")
+    @DisplayName("POST /api/admin/members")
     class Create {
 
         // --- 正常系 ---
@@ -201,7 +209,7 @@ class MemberControllerTest {
             when(memberService.save(any(Member.class))).thenReturn(savedMember);
 
             // 実行 & 検証
-            mockMvc.perform(post("/api/members")
+            mockMvc.perform(post("/api/admin/members")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(newMember)))
                     .andExpect(status().isCreated())
@@ -228,7 +236,7 @@ class MemberControllerTest {
             when(memberService.save(any(Member.class))).thenReturn(savedMember);
 
             // 実行 & 検証
-            mockMvc.perform(post("/api/members")
+            mockMvc.perform(post("/api/admin/members")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(minimalMember)))
                     .andExpect(status().isCreated())
@@ -241,7 +249,7 @@ class MemberControllerTest {
         @DisplayName("異常系: リクエストボディが空の場合、400を返す")
         void returns400_whenBodyIsEmpty() throws Exception {
             // 実行 & 検証
-            mockMvc.perform(post("/api/members")
+            mockMvc.perform(post("/api/admin/members")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(""))
                     .andExpect(status().isBadRequest());
@@ -258,7 +266,7 @@ class MemberControllerTest {
             newMember.setName("テスト");
 
             // 実行 & 検証
-            mockMvc.perform(post("/api/members")
+            mockMvc.perform(post("/api/admin/members")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(newMember)))
                     .andExpect(status().isInternalServerError());
@@ -266,11 +274,11 @@ class MemberControllerTest {
     }
 
     // ========================================
-    // PUT /api/members/{id}
+    // PUT /api/admin/members/{id}（管理API）
     // ========================================
 
     @Nested
-    @DisplayName("PUT /api/members/{id}")
+    @DisplayName("PUT /api/admin/members/{id}")
     class Update {
 
         // --- 正常系 ---
@@ -283,7 +291,7 @@ class MemberControllerTest {
             when(memberService.update(eq(sampleId), any(Member.class))).thenReturn(sampleMember);
 
             // 実行 & 検証
-            mockMvc.perform(put("/api/members/{id}", sampleId)
+            mockMvc.perform(put("/api/admin/members/{id}", sampleId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(sampleMember)))
                     .andExpect(status().isOk())
@@ -299,7 +307,7 @@ class MemberControllerTest {
         @DisplayName("異常系: 不正なID形式の場合、400を返す")
         void returns400_whenInvalidIdFormat() throws Exception {
             // 実行 & 検証
-            mockMvc.perform(put("/api/members/{id}", "invalid-uuid")
+            mockMvc.perform(put("/api/admin/members/{id}", "invalid-uuid")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(sampleMember)))
                     .andExpect(status().isBadRequest());
@@ -313,7 +321,7 @@ class MemberControllerTest {
                     .thenThrow(new RuntimeException("DB書き込みエラー"));
 
             // 実行 & 検証
-            mockMvc.perform(put("/api/members/{id}", sampleId)
+            mockMvc.perform(put("/api/admin/members/{id}", sampleId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(sampleMember)))
                     .andExpect(status().isInternalServerError());
@@ -328,7 +336,7 @@ class MemberControllerTest {
                     .thenThrow(new com.example.CareDocWeb.exception.ResourceNotFoundException("利用者が見つかりません: " + nonExistentId));
 
             // 実行 & 検証
-            mockMvc.perform(put("/api/members/{id}", nonExistentId)
+            mockMvc.perform(put("/api/admin/members/{id}", nonExistentId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(sampleMember)))
                     .andExpect(status().isNotFound());
@@ -336,11 +344,11 @@ class MemberControllerTest {
     }
 
     // ========================================
-    // DELETE /api/members/{id}
+    // DELETE /api/admin/members/{id}（管理API）
     // ========================================
 
     @Nested
-    @DisplayName("DELETE /api/members/{id}")
+    @DisplayName("DELETE /api/admin/members/{id}")
     class Delete {
 
         // --- 正常系 ---
@@ -352,7 +360,7 @@ class MemberControllerTest {
             doNothing().when(memberService).delete(sampleId);
 
             // 実行 & 検証
-            mockMvc.perform(delete("/api/members/{id}", sampleId))
+            mockMvc.perform(delete("/api/admin/members/{id}", sampleId))
                     .andExpect(status().isNoContent());
 
             verify(memberService, times(1)).delete(sampleId);
@@ -369,7 +377,7 @@ class MemberControllerTest {
                     .when(memberService).delete(nonExistentId);
 
             // 実行 & 検証
-            mockMvc.perform(delete("/api/members/{id}", nonExistentId))
+            mockMvc.perform(delete("/api/admin/members/{id}", nonExistentId))
                     .andExpect(status().isNotFound());
         }
 
@@ -379,7 +387,7 @@ class MemberControllerTest {
         @DisplayName("異常系: 不正なID形式の場合、400を返す")
         void returns400_whenInvalidIdFormat() throws Exception {
             // 実行 & 検証
-            mockMvc.perform(delete("/api/members/{id}", "invalid-uuid"))
+            mockMvc.perform(delete("/api/admin/members/{id}", "invalid-uuid"))
                     .andExpect(status().isBadRequest());
         }
 
@@ -391,7 +399,7 @@ class MemberControllerTest {
                     .when(memberService).delete(sampleId);
 
             // 実行 & 検証
-            mockMvc.perform(delete("/api/members/{id}", sampleId))
+            mockMvc.perform(delete("/api/admin/members/{id}", sampleId))
                     .andExpect(status().isInternalServerError());
         }
     }

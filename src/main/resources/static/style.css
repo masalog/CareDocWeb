@@ -274,3 +274,21 @@ h3 {
 .pdf-status.error {
     color: #e74c3c;
 }
+
+#login-overlay {
+    position: fixed;
+    inset: 0;
+    background: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.login-box {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    width: 320px;
+}

@@ -7,20 +7,22 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 共通設定コントローラー。
+ * 共通設定コントローラー（管理API）。
  *
  * <p>事業所全体の共通設定に関するAPIエンドポイントを提供する。
- * API設計書に基づき、共通データの取得・更新を実装する。</p>
+ * 管理画面（admin.html）専用であり、/api/admin/** 配下は API Gateway の
+ * Cognito Authorizer により認証必須で、有効な ID トークンなしでは
+ * リクエストがこのアプリに到達しない。</p>
  *
  * <ul>
- *   <li>{@code GET /api/settings} — 共通データを取得</li>
- *   <li>{@code PUT /api/settings} — 共通データを更新</li>
+ *   <li>{@code GET /api/admin/settings} — 共通データを取得</li>
+ *   <li>{@code PUT /api/admin/settings} — 共通データを更新</li>
  * </ul>
  *
  * @see CommonSettingsService
  */
 @RestController
-@RequestMapping("/api/settings")
+@RequestMapping("/api/admin/settings")
 @RequiredArgsConstructor
 public class CommonSettingsController {
 

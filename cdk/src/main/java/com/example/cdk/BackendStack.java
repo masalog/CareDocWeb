@@ -20,6 +20,12 @@ import software.amazon.awscdk.services.ssm.SecureStringParameterAttributes;
 import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
 
+import software.amazon.awscdk.services.apigateway.AuthorizationType;
+import software.amazon.awscdk.services.apigateway.CognitoUserPoolsAuthorizer;
+import software.amazon.awscdk.services.apigateway.MethodOptions;
+import software.amazon.awscdk.services.apigateway.ProxyResourceOptions;
+import software.amazon.awscdk.services.apigateway.Resource;
+
 /**
  * バックエンド（Lambda + API Gateway）用スタック。
  *
@@ -137,12 +143,49 @@ public class BackendStack extends Stack {
                 .build();
 
         // ------------------------------------------------------------
-        // 6. 出力
+        // 6. Cognito 認証(管理画面 API 用)
+        //    /api/admin/{proxy+} だけをデフォルトのプロキシ統合から分離し、
+        //    Cognito Authorizer を必須にする。他のパスは従来どおり認証なし。
+        //    統合先は同じ Lambda(apiAlias)なので、アプリ側の変更は不要。
+        //    ※ CloudFront は /api/* をパスそのままオリジンに転送するため、
+        //      API Gateway 側のリソースパスも /api/admin で受ける。
+        // ------------------------------------------------------------
+                AuthConstruct auth = new AuthConstruct(this, "Auth");
+
+                CognitoUserPoolsAuthorizer authorizer = CognitoUserPoolsAuthorizer.Builder
+                        .create(this, "AdminAuthorizer")
+                        .cognitoUserPools(List.of(auth.getUserPool()))
+                        .build();
+
+                api.getRoot()
+                        .addResource("api")
+                        .addResource("admin")
+                        .addProxy(ProxyResourceOptions.builder()
+                                .anyMethod(false)
+                                .build())
+                        .addMethod("ANY", null,
+                                MethodOptions.builder()
+                                        .authorizationType(AuthorizationType.COGNITO)
+                                        .authorizer(authorizer)
+                                        .build());
+
+        // ------------------------------------------------------------
+        // 7. 出力
         // ------------------------------------------------------------
         CfnOutput.Builder.create(this, "ApiUrl")
                 .description("API Gateway のエンドポイント URL")
                 .value(api.getUrl())
                 .exportName("CareDocWebApiUrl")
+                .build();
+
+        CfnOutput.Builder.create(this, "UserPoolId")
+                .description("管理画面用 Cognito User Pool ID")
+                .value(auth.getUserPool().getUserPoolId())
+                .build();
+
+        CfnOutput.Builder.create(this, "UserPoolClientId")
+                .description("管理画面用 Cognito App Client ID")
+                .value(auth.getUserPoolClient().getUserPoolClientId())
                 .build();
     }
 

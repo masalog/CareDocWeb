@@ -1,4 +1,34 @@
 // ========================================
+// 認証付き fetch(管理画面用)
+// ========================================
+/**
+ * Authorization ヘッダー付きの fetch。
+ * auth.js(admin.html のみ読み込み)の getIdToken() からトークンを取得する。
+ * index.html では auth.js が無いため、この関数は管理系 API 専用。
+ *
+ * トークン漏洩防止のため、宛先は同一オリジンの管理API(/api/admin/ 配下)に
+ * 限定する。絶対URLや管理API以外のパスを渡した場合は例外を投げる。
+ * @param {string} url - リクエスト先(/api/admin/ で始まる相対パスのみ許可)
+ * @param {object} options - fetch オプション
+ * @returns {Promise<Response>}
+ */
+function authFetch(url, options = {}) {
+    // 同一オリジンの管理APIのみ許可(トークンの外部送信を構造的に防ぐ)
+    if (typeof url !== 'string' || !url.startsWith('/api/admin/')) {
+        throw new Error('authFetch は /api/admin/ 配下のパスのみ許可されています: ' + url);
+    }
+
+    const headers = { ...(options.headers || {}) };
+    if (typeof getIdToken === 'function') {
+        const token = getIdToken();
+        if (token) {
+            headers['Authorization'] = token;
+        }
+    }
+    return fetch(url, { ...options, headers });
+}
+
+// ========================================
 // セクション切り替え
 // ========================================
 /**
@@ -24,7 +54,7 @@ function showSection(name, btn) {
 
 /**
  * 利用者一覧を取得してセレクトボックスに反映
- * GET /api/members
+ * GET /api/members(公開API・認証不要)
  */
 function loadMemberSelect() {
     fetch('/api/members')
@@ -144,9 +174,9 @@ document.addEventListener('DOMContentLoaded', initDateSelects);
 
 /** PDF生成・ダウンロード処理
  * 1. バリデーション（利用者選択・年月日入力）
- * 2. POST /api/pdf/generate にJSONリクエスト送信
+ * 2. POST /api/pdf/generate にJSONリクエスト送信（公開API・認証不要）
  * 3. レスポンスのblobをダウンロードリンクとして生成
-*/
+ */
 function generatePdf() {
     const memberId = document.getElementById('member-select').value;
     const applicationYear = parseInt(document.getElementById('app-year').value);
@@ -270,12 +300,13 @@ function generatePdf() {
 }
 
 // ========================================
-// 利用者管理
+// 利用者管理（管理画面専用・要認証）
 // ========================================
 
 /**
  * 利用者一覧を取得してテーブル表示
- * GET /api/members
+ * GET /api/members(公開API・認証不要)
+ * ※一覧表示自体は index.html のセレクトと同じ公開APIを使用
  */
 function loadMembers() {
     fetch('/api/members')
@@ -429,9 +460,9 @@ function hideMemberForm() {
 }
 
 /**
- * 利用者を保存（新規登録 or 更新）
- * - id が存在する場合: PUT /api/members/{id}（更新）
- * - id が空の場合: POST /api/members（新規登録）
+ * 利用者を保存（新規登録 or 更新）※要認証
+ * - id が存在する場合: PUT /api/admin/members/{id}（更新）
+ * - id が空の場合: POST /api/admin/members（新規登録）
  */
 function saveMember() {
     const id = document.getElementById('member-id').value;
@@ -461,9 +492,9 @@ function saveMember() {
     }
 
     const method = id ? 'PUT' : 'POST';
-    const url = id ? `/api/members/${id}` : '/api/members';
+    const url = id ? `/api/admin/members/${encodeURIComponent(id)}` : '/api/admin/members';
 
-    fetch(url, {
+    authFetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -483,93 +514,100 @@ function saveMember() {
 }
 
 /**
- * 編集フォームを表示
+ * 編集フォームを表示 ※要認証
  * 選択された利用者のデータをAPIから取得してフォームにセットする
+ * GET /api/admin/members/{id}
  * @param {string} id - 編集対象の利用者ID
  */
 function editMember(id) {
-    fetch(`/api/members/${id}`)
-        .then(res => res.json())
-        .then(m => {
-            document.getElementById('member-form-container').classList.remove('hidden');
-            document.getElementById('member-form-title').textContent = '利用者編集';
-            document.getElementById('member-id').value = m.id;
-            document.getElementById('m-insurance').value = m.insuranceIdNumber || '';
-            document.getElementById('m-name').value = m.name || '';
-            document.getElementById('m-furigana').value = m.furigana || '';
-            document.getElementById('m-birth-year').value = m.birthYear || '';
-            document.getElementById('m-birth-month').value = m.birthMonth || '';
-            document.getElementById('m-birth-day').value = m.birthDay || '';
-            document.getElementById('m-gender').value = m.gender || '';
-            document.getElementById('m-care-level').value = m.careLevel || '';
-            document.getElementById('m-address').value = m.address || '';
-            document.getElementById('m-phone').value = m.phone || '';
-            document.getElementById('m-start-year').value = m.startYear || '';
-            document.getElementById('m-start-month').value = m.startMonth || '';
-            document.getElementById('m-start-day').value = m.startDay || '';
-            document.getElementById('m-end-year').value = m.endYear || '';
-            document.getElementById('m-end-month').value = m.endMonth || '';
-            document.getElementById('m-end-day').value = m.endDay || '';
+    authFetch(`/api/admin/members/${encodeURIComponent(id)}`)
+    .then(res => {
+        if (!res.ok) throw new Error('利用者情報の取得に失敗しました');
+        return res.json();
+        })
+    .then(m => {
+        document.getElementById('member-form-container').classList.remove('hidden');
+        document.getElementById('member-form-title').textContent = '利用者編集';
+        document.getElementById('member-id').value = m.id;
+        document.getElementById('m-insurance').value = m.insuranceIdNumber || '';
+        document.getElementById('m-name').value = m.name || '';
+        document.getElementById('m-furigana').value = m.furigana || '';
+        document.getElementById('m-birth-year').value = m.birthYear || '';
+        document.getElementById('m-birth-month').value = m.birthMonth || '';
+        document.getElementById('m-birth-day').value = m.birthDay || '';
+        document.getElementById('m-gender').value = m.gender || '';
+        document.getElementById('m-care-level').value = m.careLevel || '';
+        document.getElementById('m-address').value = m.address || '';
+        document.getElementById('m-phone').value = m.phone || '';
+        document.getElementById('m-start-year').value = m.startYear || '';
+        document.getElementById('m-start-month').value = m.startMonth || '';
+        document.getElementById('m-start-day').value = m.startDay || '';
+        document.getElementById('m-end-year').value = m.endYear || '';
+        document.getElementById('m-end-month').value = m.endMonth || '';
+        document.getElementById('m-end-day').value = m.endDay || '';
+    })
+    .catch(err => {
+        showMessage('member-message', err.message, 'error');
         });
 }
 
 /**
- * 利用者を削除
- * 確認ダイアログで承認後、DELETE /api/members/{id} を実行
+ * 利用者を削除 ※要認証
+ * 確認ダイアログで承認後、DELETE /api/admin/members/{id} を実行
  * @param {string} id - 削除対象の利用者ID
  * @param {string} name - 確認ダイアログ表示用の氏名
  */
 function deleteMember(id, name) {
     if (!confirm(`「${name}」を削除しますか？`)) return;
 
-    fetch(`/api/members/${id}`, { method: 'DELETE' })
-        .then(res => {
-            if (!res.ok) throw new Error('削除に失敗しました');
-            showMessage('member-message', `「${name}」を削除しました`, 'success');
-            loadMembers(); // 一覧を再取得して最新化
-        })
-        .catch(err => {
-            showMessage('member-message', err.message, 'error');
-        });
+    authFetch(`/api/admin/members/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    .then(res => {
+        if (!res.ok) throw new Error('削除に失敗しました');
+        showMessage('member-message', `「${name}」を削除しました`, 'success');
+        loadMembers(); // 一覧を再取得して最新化
+    })
+    .catch(err => {
+        showMessage('member-message', err.message, 'error');
+    });
 }
 
 // ========================================
-// 共通設定
+// 共通設定（管理画面専用・要認証）
 // ========================================
 
 /**
  * 共通設定を取得してフォームに反映
- * GET /api/settings
+ * GET /api/admin/settings
  */
 function loadSettings() {
-    fetch('/api/settings')
-        .then(res => {
-            if (!res.ok) throw new Error('共通設定が未登録です');
-            return res.json();
-        })
-        .then(s => {
-            document.getElementById('s-survey-address').value = s.surveyAddress || '';
-            document.getElementById('s-survey-phone').value = s.surveyPhone || '';
-            document.getElementById('s-facility-name').value = s.facilityName || '';
-            document.getElementById('s-facility-phone').value = s.facilityPhone || '';
-            document.getElementById('s-institution-name').value = s.institutionName || '';
-            document.getElementById('s-institution-address').value = s.institutionAddress || '';
-            document.getElementById('s-agent-name').value = s.agentName || '';
-            document.getElementById('s-agent-postal').value = s.agentPostal || '';
-            document.getElementById('s-agent-address').value = s.agentAddress || '';
-            document.getElementById('s-agent-phone').value = s.agentPhone || '';
-            document.getElementById('s-doctor-name').value = s.doctorName || '';
-            document.getElementById('s-clinic-name').value = s.clinicName || '';
-            document.getElementById('s-clinic-postal').value = s.clinicPostal || '';
-            document.getElementById('s-clinic-address').value = s.clinicAddress || '';
-            document.getElementById('s-clinic-phone').value = s.clinicPhone || '';
-        })
-        .catch(() => {});
+    authFetch('/api/admin/settings')
+    .then(res => {
+        if (!res.ok) throw new Error('共通設定が未登録です');
+        return res.json();
+    })
+    .then(s => {
+        document.getElementById('s-survey-address').value = s.surveyAddress || '';
+        document.getElementById('s-survey-phone').value = s.surveyPhone || '';
+        document.getElementById('s-facility-name').value = s.facilityName || '';
+        document.getElementById('s-facility-phone').value = s.facilityPhone || '';
+        document.getElementById('s-institution-name').value = s.institutionName || '';
+        document.getElementById('s-institution-address').value = s.institutionAddress || '';
+        document.getElementById('s-agent-name').value = s.agentName || '';
+        document.getElementById('s-agent-postal').value = s.agentPostal || '';
+        document.getElementById('s-agent-address').value = s.agentAddress || '';
+        document.getElementById('s-agent-phone').value = s.agentPhone || '';
+        document.getElementById('s-doctor-name').value = s.doctorName || '';
+        document.getElementById('s-clinic-name').value = s.clinicName || '';
+        document.getElementById('s-clinic-postal').value = s.clinicPostal || '';
+        document.getElementById('s-clinic-address').value = s.clinicAddress || '';
+        document.getElementById('s-clinic-phone').value = s.clinicPhone || '';
+    })
+    .catch(() => {});
 }
 
 /**
  * 共通設定を保存
- * PUT /api/settings にJSONリクエスト送信
+ * PUT /api/admin/settings にJSONリクエスト送信 ※要認証
  */
 function saveSettings() {
     const body = {
@@ -590,7 +628,7 @@ function saveSettings() {
         clinicPhone: document.getElementById('s-clinic-phone').value || null,
     };
 
-    fetch('/api/settings', {
+    authFetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
