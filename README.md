@@ -1,7 +1,6 @@
 # CareDocWeb
 
-CareDocWeb は、データベースの情報を PDF に転記して、介護認定申請書を自動作成する Web アプリケーションです。<br>
-デスクトップ版 [CareDoc](https://github.com/masalog/CareDoc) の Web 移行版です。
+CareDocWeb は、データベースの情報を PDF に転記して、介護認定申請書を自動作成する Web アプリケーションです。デスクトップアプリ [CareDoc](https://github.com/masalog/CareDoc) の Web 移行版になります。
 
 公開用URL（CloudFront）<br>
 **https://dre5onrtbrgty.cloudfront.net**
