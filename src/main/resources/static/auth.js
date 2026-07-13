@@ -2,8 +2,8 @@
 
 // ---- Cognito 設定(CfnOutput の値に置き換える)----
 const userPool = new AmazonCognitoIdentity.CognitoUserPool({
-  UserPoolId: 'ap-northeast-1_XXXXXXXXX',
-  ClientId: 'XXXXXXXXXXXXXXXXXXXXXXXXXX'
+  UserPoolId: 'ap-northeast-1_7QbWyQHuX',
+  ClientId: '5qbjhge5uahdej0op0p636mdir'
 });
 
 let currentSession = null;
