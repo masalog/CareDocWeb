@@ -29,7 +29,7 @@ public class AuthConstruct extends Construct {
                         .requireLowercase(true)
                         .requireUppercase(true)
                         .requireDigits(true)
-                        .requireSymbols(false)　// 記号は不要とする
+                        .requireSymbols(false)
                         .build())
                 .build();
 
