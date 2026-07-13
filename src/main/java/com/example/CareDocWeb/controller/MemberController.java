@@ -14,35 +14,49 @@ import java.util.UUID;
  * 利用者コントローラー。
  *
  * <p>利用者に関するAPIエンドポイントを提供する。
- * API設計書に基づき、利用者のCRUD操作を実装する。</p>
+ * 公開APIと管理APIの2系統を持つ。</p>
  *
+ * <p>【公開API】認証不要。index.html（PDF生成ページ）が使用する。</p>
  * <ul>
  *   <li>{@code GET /api/members} — 利用者一覧を取得</li>
- *   <li>{@code GET /api/members/{id}} — 利用者詳細を取得</li>
- *   <li>{@code POST /api/members} — 利用者を登録</li>
- *   <li>{@code PUT /api/members/{id}} — 利用者を更新</li>
- *   <li>{@code DELETE /api/members/{id}} — 利用者を削除</li>
+ * </ul>
+ *
+ * <p>【管理API】admin.html 専用。/api/admin/** 配下は API Gateway の
+ * Cognito Authorizer により認証必須で、有効な ID トークンなしでは
+ * リクエストがこのアプリに到達しない。</p>
+ * <ul>
+ *   <li>{@code GET /api/admin/members/{id}} — 利用者詳細を取得</li>
+ *   <li>{@code POST /api/admin/members} — 利用者を登録</li>
+ *   <li>{@code PUT /api/admin/members/{id}} — 利用者を更新</li>
+ *   <li>{@code DELETE /api/admin/members/{id}} — 利用者を削除</li>
  * </ul>
  *
  * @see MemberService
  */
 @RestController
-@RequestMapping("/api/members")
 @RequiredArgsConstructor
 public class MemberController {
 
     private final MemberService memberService;
+
+    // ========================================
+    // 公開API（認証不要）
+    // ========================================
 
     /**
      * 利用者一覧を取得する。
      *
      * @return 利用者のリスト
      */
-    @GetMapping
+    @GetMapping("/api/members")
     public ResponseEntity<List<Member>> findAll() {
         List<Member> members = memberService.findAll();
         return ResponseEntity.ok(members);
     }
+
+    // ========================================
+    // 管理API（Cognito 認証必須）
+    // ========================================
 
     /**
      * IDを指定して利用者詳細を取得する。
@@ -50,7 +64,7 @@ public class MemberController {
      * @param id 利用者のUUID
      * @return 該当する利用者
      */
-    @GetMapping("/{id}")
+    @GetMapping("/api/admin/members/{id}")
     public ResponseEntity<Member> findById(@PathVariable UUID id) {
         Member member = memberService.findById(id);
         return ResponseEntity.ok(member);
@@ -62,7 +76,7 @@ public class MemberController {
      * @param member 登録する利用者データ
      * @return 登録後の利用者（ID・タイムスタンプ付き）
      */
-    @PostMapping
+    @PostMapping("/api/admin/members")
     public ResponseEntity<Member> create(@RequestBody Member member) {
         Member savedMember = memberService.save(member);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedMember);
@@ -78,7 +92,7 @@ public class MemberController {
      * @param member 更新データ
      * @return 更新後の利用者
      */
-    @PutMapping("/{id}")
+    @PutMapping("/api/admin/members/{id}")
     public ResponseEntity<Member> update(@PathVariable UUID id, @RequestBody Member member) {
         Member updatedMember = memberService.update(id, member);
         return ResponseEntity.ok(updatedMember);
@@ -93,7 +107,7 @@ public class MemberController {
      * @param id 削除対象の利用者UUID
      * @return 204 No Content
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/api/admin/members/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         memberService.delete(id);
         return ResponseEntity.noContent().build();
