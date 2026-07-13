@@ -25,6 +25,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>{@code @WebMvcTest} を使用し、HTTPリクエスト/レスポンスの観点から
  * コントローラー層の動作を検証する。サービス層はモック化する。</p>
+ *
+ * <p>共通設定APIは管理画面専用のため、パスは {@code /api/admin/settings}。
+ * （API Gateway の Cognito Authorizer による認証はインフラ層の責務であり、
+ * 本テストではパスマッピングとコントローラーの動作のみを検証する）</p>
  */
 @WebMvcTest(CommonSettingsController.class)
 class CommonSettingsControllerTest {
@@ -64,11 +68,11 @@ class CommonSettingsControllerTest {
     }
 
     // ========================================
-    // GET /api/settings
+    // GET /api/admin/settings
     // ========================================
 
     @Nested
-    @DisplayName("GET /api/settings")
+    @DisplayName("GET /api/admin/settings")
     class Find {
 
         // --- 正常系 ---
@@ -80,7 +84,7 @@ class CommonSettingsControllerTest {
             when(commonSettingsService.find()).thenReturn(sampleSettings);
 
             // 実行 & 検証
-            mockMvc.perform(get("/api/settings"))
+            mockMvc.perform(get("/api/admin/settings"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$.id").value(sampleId.toString()))
@@ -99,7 +103,7 @@ class CommonSettingsControllerTest {
             when(commonSettingsService.find()).thenReturn(sampleSettings);
 
             // 実行 & 検証
-            mockMvc.perform(get("/api/settings"))
+            mockMvc.perform(get("/api/admin/settings"))
                     .andExpect(jsonPath("$.surveyAddress").value("東京都中央区日本橋3-3-3"))
                     .andExpect(jsonPath("$.surveyPhone").value("03-1111-2222"))
                     .andExpect(jsonPath("$.facilityName").value("中央介護センター"))
@@ -128,7 +132,7 @@ class CommonSettingsControllerTest {
             when(commonSettingsService.find()).thenReturn(sampleSettings);
 
             // 実行 & 検証
-            mockMvc.perform(get("/api/settings"))
+            mockMvc.perform(get("/api/admin/settings"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.facilityName").value("中央介護センター"))
                     .andExpect(jsonPath("$.clinicName").isEmpty())
@@ -145,7 +149,7 @@ class CommonSettingsControllerTest {
                     .thenThrow(new com.example.CareDocWeb.exception.ResourceNotFoundException("共通設定が登録されていません"));
 
             // 実行 & 検証
-            mockMvc.perform(get("/api/settings"))
+            mockMvc.perform(get("/api/admin/settings"))
                     .andExpect(status().isNotFound());
         }
 
@@ -157,17 +161,17 @@ class CommonSettingsControllerTest {
                     .thenThrow(new RuntimeException("DB接続エラー"));
 
             // 実行 & 検証
-            mockMvc.perform(get("/api/settings"))
+            mockMvc.perform(get("/api/admin/settings"))
                     .andExpect(status().isInternalServerError());
         }
     }
 
     // ========================================
-    // PUT /api/settings
+    // PUT /api/admin/settings
     // ========================================
 
     @Nested
-    @DisplayName("PUT /api/settings")
+    @DisplayName("PUT /api/admin/settings")
     class Update {
 
         // --- 正常系 ---
@@ -180,7 +184,7 @@ class CommonSettingsControllerTest {
             when(commonSettingsService.save(any(CommonSettings.class))).thenReturn(sampleSettings);
 
             // 実行 & 検証
-            mockMvc.perform(put("/api/settings")
+            mockMvc.perform(put("/api/admin/settings")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(sampleSettings)))
                     .andExpect(status().isOk())
@@ -198,7 +202,7 @@ class CommonSettingsControllerTest {
             when(commonSettingsService.save(any(CommonSettings.class))).thenReturn(sampleSettings);
 
             // 実行 & 検証
-            mockMvc.perform(put("/api/settings")
+            mockMvc.perform(put("/api/admin/settings")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(sampleSettings)))
                     .andExpect(status().isOk())
@@ -217,7 +221,7 @@ class CommonSettingsControllerTest {
             when(commonSettingsService.save(any(CommonSettings.class))).thenReturn(sampleSettings);
 
             // 実行 & 検証
-            mockMvc.perform(put("/api/settings")
+            mockMvc.perform(put("/api/admin/settings")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(sampleSettings)))
                     .andExpect(status().isOk())
@@ -231,7 +235,7 @@ class CommonSettingsControllerTest {
         @DisplayName("異常系: リクエストボディが空の場合、400を返す")
         void returns400_whenBodyIsEmpty() throws Exception {
             // 実行 & 検証
-            mockMvc.perform(put("/api/settings")
+            mockMvc.perform(put("/api/admin/settings")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(""))
                     .andExpect(status().isBadRequest());
@@ -245,7 +249,7 @@ class CommonSettingsControllerTest {
                     .thenThrow(new RuntimeException("DB書き込みエラー"));
 
             // 実行 & 検証
-            mockMvc.perform(put("/api/settings")
+            mockMvc.perform(put("/api/admin/settings")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(sampleSettings)))
                     .andExpect(status().isInternalServerError());
