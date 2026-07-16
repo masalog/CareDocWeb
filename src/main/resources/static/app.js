@@ -521,6 +521,8 @@ function saveMember() {
  * 編集フォームを表示 ※要認証
  * 選択された利用者のデータをAPIから取得してフォームにセットする
  * GET /api/admin/members/{id}
+ * 日付（生年月日・認定開始・認定終了・施設入所）はプルダウンのため、
+ * 年・月をセット → 日の選択肢を再生成 → 日をセット の順で反映する
  * @param {string} id - 編集対象の利用者ID
  */
 function editMember(id) {
@@ -528,7 +530,7 @@ function editMember(id) {
     .then(res => {
         if (!res.ok) throw new Error('利用者情報の取得に失敗しました');
         return res.json();
-        })
+    })
     .then(m => {
         document.getElementById('member-form-container').classList.remove('hidden');
         document.getElementById('member-form-title').textContent = '利用者編集';
@@ -536,23 +538,43 @@ function editMember(id) {
         document.getElementById('m-insurance').value = m.insuranceIdNumber || '';
         document.getElementById('m-name').value = m.name || '';
         document.getElementById('m-furigana').value = m.furigana || '';
+
+        // 生年月日
+        ensureYearOption('m-birth-year', m.birthYear);
         document.getElementById('m-birth-year').value = m.birthYear || '';
         document.getElementById('m-birth-month').value = m.birthMonth || '';
+        updateMemberDayOptions(MEMBER_DATE_FIELDS[3]);
         document.getElementById('m-birth-day').value = m.birthDay || '';
+
         document.getElementById('m-gender').value = m.gender || '';
         document.getElementById('m-care-level').value = m.careLevel || '';
         document.getElementById('m-address').value = m.address || '';
         document.getElementById('m-phone').value = m.phone || '';
+
+        // 認定開始
+        ensureYearOption('m-start-year', m.startYear);
         document.getElementById('m-start-year').value = m.startYear || '';
         document.getElementById('m-start-month').value = m.startMonth || '';
+        updateMemberDayOptions(MEMBER_DATE_FIELDS[0]);
         document.getElementById('m-start-day').value = m.startDay || '';
+
+        // 認定終了
+        ensureYearOption('m-end-year', m.endYear);
         document.getElementById('m-end-year').value = m.endYear || '';
         document.getElementById('m-end-month').value = m.endMonth || '';
+        updateMemberDayOptions(MEMBER_DATE_FIELDS[1]);
         document.getElementById('m-end-day').value = m.endDay || '';
+
+        // 施設入所
+        ensureYearOption('m-inst-year', m.institutionYear);
+        document.getElementById('m-inst-year').value = m.institutionYear || '';
+        document.getElementById('m-inst-month').value = m.institutionMonth || '';
+        updateMemberDayOptions(MEMBER_DATE_FIELDS[2]);
+        document.getElementById('m-inst-day').value = m.institutionDay || '';
     })
     .catch(err => {
         showMessage('member-message', err.message, 'error');
-        });
+    });
 }
 
 /**
