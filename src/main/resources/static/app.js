@@ -625,6 +625,7 @@ function initMemberDateSelects() {
         'm-start-year': [currentYear - 10, currentYear],     // 認定開始
         'm-end-year':   [currentYear,      currentYear + 4], // 認定終了
         'm-inst-year':  [currentYear - 10, currentYear],     // 施設入所
+        'm-birth-year': [currentYear - 110, currentYear],    // 生年（〜110歳を想定）
     };
 
     MEMBER_DATE_FIELDS.forEach(f => {
@@ -652,6 +653,28 @@ function initMemberDateSelects() {
 
         updateMemberDayOptions(f);
     });
+}
+
+/**
+ * 年・月の選択状態に応じて日の選択肢を再生成する。
+ * 年か月が未選択の場合は1〜31日を表示。
+ */
+function updateMemberDayOptions(f) {
+    const year = parseInt(document.getElementById(f.year).value, 10);
+    const daySelect = document.getElementById(f.day);
+
+    const lastDay = (year && month) ? new Date(year, month, 0).getDate() : 31;
+    const prev = daySelect.value;
+
+    daySelect.replaceChildren(new Option('--', ''));
+    for (let d = 1; d <= lastDay; d++) {
+        daySelect.appendChild(new Option(`${d}日`, String(d)));
+    }
+
+    // 前回の選択を可能なら復元（末日超過なら未選択に戻る）
+    if (prev && parseInt(prev, 10) <= lastDay) {
+        daySelect.value = prev;
+    }
 }
 
 // ========================================
