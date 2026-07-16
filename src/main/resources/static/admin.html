@@ -17,7 +17,7 @@
     <!-- ログインオーバーレイ(認証前はこれだけ表示) -->
     <div id="login-overlay">
         <div class="login-box">
-            <h2>管理者ログイン</h2>
+            <h2>認証ログイン</h2>
             <div class="form-group">
                 <label for="login-email">メールアドレス</label>
                 <input type="email" id="login-email" autocomplete="username">
@@ -62,20 +62,20 @@
                             <input type="text" id="m-furigana" name="furigana">
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="m-birth-year">生年（西暦）</label>
-                            <input type="number" id="m-birth-year" name="birthYear">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="m-birth-year">生年（西暦）</label>
+                                <select id="m-birth-year" name="birthYear"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="m-birth-month">生月</label>
+                                <select id="m-birth-month" name="birthMonth"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="m-birth-day">生日</label>
+                                <select id="m-birth-day" name="birthDay"></select>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="m-birth-month">生月</label>
-                            <input type="number" id="m-birth-month" name="birthMonth" min="1" max="12">
-                        </div>
-                        <div class="form-group">
-                            <label for="m-birth-day">生日</label>
-                            <input type="number" id="m-birth-day" name="birthDay" min="1" max="31">
-                        </div>
-                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="m-gender">性別</label>
@@ -112,43 +112,43 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="m-start-year">認定開始年</label>
-                            <input type="number" id="m-start-year" name="startYear">
+                            <select id="m-start-year" name="startYear"></select>
                         </div>
                         <div class="form-group">
                             <label for="m-start-month">開始月</label>
-                            <input type="number" id="m-start-month" name="startMonth" min="1" max="12">
+                            <select id="m-start-month" name="startMonth"></select>
                         </div>
                         <div class="form-group">
                             <label for="m-start-day">開始日</label>
-                            <input type="number" id="m-start-day" name="startDay" min="1" max="31">
+                            <select id="m-start-day" name="startDay"></select>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="m-end-year">認定終了年</label>
-                            <input type="number" id="m-end-year" name="endYear">
+                            <select id="m-end-year" name="endYear"></select>
                         </div>
                         <div class="form-group">
                             <label for="m-end-month">終了月</label>
-                            <input type="number" id="m-end-month" name="endMonth" min="1" max="12">
+                            <select id="m-end-month" name="endMonth"></select>
                         </div>
                         <div class="form-group">
                             <label for="m-end-day">終了日</label>
-                            <input type="number" id="m-end-day" name="endDay" min="1" max="31">
+                            <select id="m-end-day" name="endDay"></select>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="m-inst-year">施設入所年</label>
-                            <input type="number" id="m-inst-year" name="institutionYear">
+                            <select id="m-inst-year" name="institutionYear"></select>
                         </div>
                         <div class="form-group">
                             <label for="m-inst-month">入所月</label>
-                            <input type="number" id="m-inst-month" name="institutionMonth" min="1" max="12">
+                            <select id="m-inst-month" name="institutionMonth"></select>
                         </div>
                         <div class="form-group">
                             <label for="m-inst-day">入所日</label>
-                            <input type="number" id="m-inst-day" name="institutionDay" min="1" max="31">
+                            <select id="m-inst-day" name="institutionDay"></select>
                         </div>
                     </div>
                     <div class="form-actions">
@@ -225,7 +225,7 @@
                         <input type="text" id="s-doctor-name" name="doctorName">
                     </div>
                     <div class="form-group">
-                        <label for="s-clinic-name">クリニック名</label>
+                        <label for="s-clinic-name">医療機関名</label>
                         <input type="text" id="s-clinic-name" name="clinicName">
                     </div>
                 </div>

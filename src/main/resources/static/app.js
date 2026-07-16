@@ -445,13 +445,15 @@ function loadMembers() {
 
 /**
  * 新規登録フォームを表示
- * フォームを空の状態にリセットして表示する
+ * フォームを空の状態にリセットし、日付プルダウンを再構築して表示する
+ * （編集時に追加された範囲外の年候補もここで破棄される）
  */
 function showMemberForm() {
     document.getElementById('member-form-container').classList.remove('hidden');
     document.getElementById('member-form-title').textContent = '利用者登録';
     document.getElementById('member-form').reset();
     document.getElementById('member-id').value = '';
+    initMemberDateSelects();
 }
 
 /** 利用者フォームを非表示にする */
@@ -483,6 +485,9 @@ function saveMember() {
         endYear: parseInt(document.getElementById('m-end-year').value) || null,
         endMonth: parseInt(document.getElementById('m-end-month').value) || null,
         endDay: parseInt(document.getElementById('m-end-day').value) || null,
+        institutionYear: parseInt(document.getElementById('m-inst-year').value) || null,
+        institutionMonth: parseInt(document.getElementById('m-inst-month').value) || null,
+        institutionDay: parseInt(document.getElementById('m-inst-day').value) || null,
     };
 
     // バリデーション
@@ -517,6 +522,8 @@ function saveMember() {
  * 編集フォームを表示 ※要認証
  * 選択された利用者のデータをAPIから取得してフォームにセットする
  * GET /api/admin/members/{id}
+ * 日付（生年月日・認定開始・認定終了・施設入所）はプルダウンのため、
+ * 年・月をセット → 日の選択肢を再生成 → 日をセット の順で反映する
  * @param {string} id - 編集対象の利用者ID
  */
 function editMember(id) {
@@ -524,7 +531,7 @@ function editMember(id) {
     .then(res => {
         if (!res.ok) throw new Error('利用者情報の取得に失敗しました');
         return res.json();
-        })
+    })
     .then(m => {
         document.getElementById('member-form-container').classList.remove('hidden');
         document.getElementById('member-form-title').textContent = '利用者編集';
@@ -532,23 +539,43 @@ function editMember(id) {
         document.getElementById('m-insurance').value = m.insuranceIdNumber || '';
         document.getElementById('m-name').value = m.name || '';
         document.getElementById('m-furigana').value = m.furigana || '';
+
+        // 生年月日
+        ensureYearOption('m-birth-year', m.birthYear);
         document.getElementById('m-birth-year').value = m.birthYear || '';
         document.getElementById('m-birth-month').value = m.birthMonth || '';
+        updateMemberDayOptions(MEMBER_DATE_FIELDS[3]);
         document.getElementById('m-birth-day').value = m.birthDay || '';
+
         document.getElementById('m-gender').value = m.gender || '';
         document.getElementById('m-care-level').value = m.careLevel || '';
         document.getElementById('m-address').value = m.address || '';
         document.getElementById('m-phone').value = m.phone || '';
+
+        // 認定開始
+        ensureYearOption('m-start-year', m.startYear);
         document.getElementById('m-start-year').value = m.startYear || '';
         document.getElementById('m-start-month').value = m.startMonth || '';
+        updateMemberDayOptions(MEMBER_DATE_FIELDS[0]);
         document.getElementById('m-start-day').value = m.startDay || '';
+
+        // 認定終了
+        ensureYearOption('m-end-year', m.endYear);
         document.getElementById('m-end-year').value = m.endYear || '';
         document.getElementById('m-end-month').value = m.endMonth || '';
+        updateMemberDayOptions(MEMBER_DATE_FIELDS[1]);
         document.getElementById('m-end-day').value = m.endDay || '';
+
+        // 施設入所
+        ensureYearOption('m-inst-year', m.institutionYear);
+        document.getElementById('m-inst-year').value = m.institutionYear || '';
+        document.getElementById('m-inst-month').value = m.institutionMonth || '';
+        updateMemberDayOptions(MEMBER_DATE_FIELDS[2]);
+        document.getElementById('m-inst-day').value = m.institutionDay || '';
     })
     .catch(err => {
         showMessage('member-message', err.message, 'error');
-        });
+    });
 }
 
 /**
@@ -569,6 +596,118 @@ function deleteMember(id, name) {
     .catch(err => {
         showMessage('member-message', err.message, 'error');
     });
+}
+
+// ========================================
+// 利用者フォームの日付プルダウン
+// ========================================
+
+/** 利用者フォーム内の日付フィールド定義（年・月・日のID三つ組） */
+const MEMBER_DATE_FIELDS = [
+    { year: 'm-start-year', month: 'm-start-month', day: 'm-start-day' },
+    { year: 'm-end-year',   month: 'm-end-month',   day: 'm-end-day' },
+    { year: 'm-inst-year',  month: 'm-inst-month',  day: 'm-inst-day' },
+    { year: 'm-birth-year', month: 'm-birth-month', day: 'm-birth-day' },
+];
+
+/**
+ * 利用者フォームの年・月・日プルダウンを初期化する。
+ * 任意項目のため、先頭に空の「--」を入れる。
+ * 冪等（何度呼んでも安全）。ページ読み込み時と新規登録フォームを
+ * 開くたびに呼び、編集時に追加された範囲外の年候補を破棄する。
+ * 年の範囲はフィールドごとに指定：
+ * - 認定開始・施設入所：当年-10年 〜 当年（未来は不可）
+ * - 認定終了：当年 〜 当年+4年
+ * - 生年月日：当年-110年 〜 当年
+ */
+function initMemberDateSelects() {
+    const currentYear = new Date().getFullYear();
+
+    // フィールドごとの年範囲 [開始年, 終了年]
+    const yearRanges = {
+        'm-start-year': [currentYear - 10, currentYear],     // 認定開始
+        'm-end-year':   [currentYear,      currentYear + 4], // 認定終了
+        'm-inst-year':  [currentYear - 10, currentYear],     // 施設入所
+        'm-birth-year': [currentYear - 110, currentYear],    // 生年（〜110歳を想定）
+    };
+
+    MEMBER_DATE_FIELDS.forEach(f => {
+        const yearSelect = document.getElementById(f.year);
+        const monthSelect = document.getElementById(f.month);
+        const daySelect = document.getElementById(f.day);
+        if (!yearSelect || !monthSelect || !daySelect) return;
+
+        // 年
+        const [fromYear, toYear] = yearRanges[f.year];
+        yearSelect.replaceChildren(new Option('--', ''));
+        for (let y = fromYear; y <= toYear; y++) {
+            yearSelect.appendChild(new Option(`${y}年`, String(y)));
+        }
+
+        // 月
+        monthSelect.replaceChildren(new Option('--', ''));
+        for (let m = 1; m <= 12; m++) {
+            monthSelect.appendChild(new Option(`${m}月`, String(m)));
+        }
+
+        // 年・月が変わったら日を再生成
+        yearSelect.onchange = () => updateMemberDayOptions(f);
+        monthSelect.onchange = () => updateMemberDayOptions(f);
+
+        updateMemberDayOptions(f);
+    });
+}
+
+/**
+ * 年・月の選択状態に応じて日の選択肢を再生成する。
+ * 年か月が未選択の場合は1〜31日を表示。
+ */
+function updateMemberDayOptions(f) {
+    const year = parseInt(document.getElementById(f.year).value, 10);
+    const month = parseInt(document.getElementById(f.month).value, 10);
+    const daySelect = document.getElementById(f.day);
+
+    const lastDay = (year && month) ? new Date(year, month, 0).getDate() : 31;
+    const prev = daySelect.value;
+
+    daySelect.replaceChildren(new Option('--', ''));
+    for (let d = 1; d <= lastDay; d++) {
+        daySelect.appendChild(new Option(`${d}日`, String(d)));
+    }
+
+    // 前回の選択を可能なら復元（末日超過なら未選択に戻る）
+    if (prev && parseInt(prev, 10) <= lastDay) {
+        daySelect.value = prev;
+    }
+}
+
+/**
+ * 年セレクトに指定した年の option が無ければ追加する（編集時の既存データ用）。
+ * プルダウンの範囲外の年が登録済みでも、編集時に「--」に落ちて
+ * 保存時に null 上書きされる事故を防ぐ。
+ * @param {string} yearSelectId - 年セレクトのID
+ * @param {number|null} year - 既存データの年（null/undefinedなら何もしない）
+ */
+function ensureYearOption(yearSelectId, year) {
+    if (!year) return;
+    const yearSelect = document.getElementById(yearSelectId);
+    const value = String(year);
+
+    // 既に存在するなら何もしない
+    if ([...yearSelect.options].some(o => o.value === value)) return;
+
+    // 昇順を保つ位置に挿入（先頭の「--」は飛ばす）
+    let inserted = false;
+    for (let i = 1; i < yearSelect.options.length; i++) {
+        if (parseInt(yearSelect.options[i].value, 10) > year) {
+            yearSelect.add(new Option(`${year}年`, value), i);
+            inserted = true;
+            break;
+        }
+    }
+    if (!inserted) {
+        yearSelect.appendChild(new Option(`${year}年`, value));
+    }
 }
 
 // ========================================
@@ -663,13 +802,17 @@ function showMessage(elementId, text, type) {
 }
 
 // ========================================
-// 初期化（index.html 用）
+// 初期化
 // ========================================
 
-/** ページロード時に利用者セレクトボックスを読み込み */
+/** ページロード時の初期化（ページごとに存在する要素で分岐） */
 document.addEventListener('DOMContentLoaded', () => {
     // index.html: PDF生成ページ
     if (document.getElementById('member-select')) {
         loadMemberSelect();
+    }
+    // admin.html: 利用者フォームの日付プルダウン初期化
+    if (document.getElementById('m-start-year')) {
+        initMemberDateSelects();
     }
 });
