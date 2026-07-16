@@ -445,14 +445,15 @@ function loadMembers() {
 
 /**
  * 新規登録フォームを表示
- * フォームを空の状態にリセットして表示する
+ * フォームを空の状態にリセットし、日付プルダウンを再構築して表示する
+ * （編集時に追加された範囲外の年候補もここで破棄される）
  */
 function showMemberForm() {
     document.getElementById('member-form-container').classList.remove('hidden');
     document.getElementById('member-form-title').textContent = '利用者登録';
     document.getElementById('member-form').reset();
     document.getElementById('member-id').value = '';
-    MEMBER_DATE_FIELDS.forEach(updateMemberDayOptions);
+    initMemberDateSelects();
 }
 
 /** 利用者フォームを非表示にする */
@@ -612,6 +613,8 @@ const MEMBER_DATE_FIELDS = [
 /**
  * 利用者フォームの年・月・日プルダウンを初期化する。
  * 任意項目のため、先頭に空の「--」を入れる。
+ * 冪等（何度呼んでも安全）。ページ読み込み時と新規登録フォームを
+ * 開くたびに呼び、編集時に追加された範囲外の年候補を破棄する。
  * 年の範囲はフィールドごとに指定：
  * - 認定開始・施設入所：当年-10年 〜 当年（未来は不可）
  * - 認定終了：当年 〜 当年+4年
@@ -648,8 +651,8 @@ function initMemberDateSelects() {
         }
 
         // 年・月が変わったら日を再生成
-        yearSelect.addEventListener('change', () => updateMemberDayOptions(f));
-        monthSelect.addEventListener('change', () => updateMemberDayOptions(f));
+        yearSelect.onchange = () => updateMemberDayOptions(f);
+        monthSelect.onchange = () => updateMemberDayOptions(f);
 
         updateMemberDayOptions(f);
     });
