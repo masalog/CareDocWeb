@@ -452,6 +452,7 @@ function showMemberForm() {
     document.getElementById('member-form-title').textContent = '利用者登録';
     document.getElementById('member-form').reset();
     document.getElementById('member-id').value = '';
+    MEMBER_DATE_FIELDS.forEach(updateMemberDayOptions);
 }
 
 /** 利用者フォームを非表示にする */
@@ -573,6 +574,18 @@ function deleteMember(id, name) {
         showMessage('member-message', err.message, 'error');
     });
 }
+
+// ========================================
+// 利用者フォームの日付プルダウン
+// ========================================
+
+/** 利用者フォーム内の日付フィールド定義（年・月・日のID三つ組） */
+const MEMBER_DATE_FIELDS = [
+    { year: 'm-start-year', month: 'm-start-month', day: 'm-start-day' },
+    { year: 'm-end-year',   month: 'm-end-month',   day: 'm-end-day' },
+    { year: 'm-inst-year',  month: 'm-inst-month',  day: 'm-inst-day' },
+    { year: 'm-birth-year', month: 'm-birth-month', day: 'm-birth-day' },
+];
 
 // ========================================
 // 共通設定（管理画面専用・要認証）
