@@ -799,13 +799,17 @@ function showMessage(elementId, text, type) {
 }
 
 // ========================================
-// 初期化（index.html 用）
+// 初期化
 // ========================================
 
-/** ページロード時に利用者セレクトボックスを読み込み */
+/** ページロード時の初期化（ページごとに存在する要素で分岐） */
 document.addEventListener('DOMContentLoaded', () => {
     // index.html: PDF生成ページ
     if (document.getElementById('member-select')) {
         loadMemberSelect();
+    }
+    // admin.html: 利用者フォームの日付プルダウン初期化
+    if (document.getElementById('m-start-year')) {
+        initMemberDateSelects();
     }
 });
