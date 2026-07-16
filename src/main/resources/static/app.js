@@ -609,6 +609,51 @@ const MEMBER_DATE_FIELDS = [
     { year: 'm-birth-year', month: 'm-birth-month', day: 'm-birth-day' },
 ];
 
+/**
+ * 利用者フォームの年・月・日プルダウンを初期化する。
+ * 任意項目のため、先頭に空の「--」を入れる。
+ * 年の範囲はフィールドごとに指定：
+ * - 認定開始・施設入所：当年-10年 〜 当年（未来は不可）
+ * - 認定終了：当年 〜 当年+4年
+ * - 生年月日：当年-110年 〜 当年
+ */
+function initMemberDateSelects() {
+    const currentYear = new Date().getFullYear();
+
+    // フィールドごとの年範囲 [開始年, 終了年]
+    const yearRanges = {
+        'm-start-year': [currentYear - 10, currentYear],     // 認定開始
+        'm-end-year':   [currentYear,      currentYear + 4], // 認定終了
+        'm-inst-year':  [currentYear - 10, currentYear],     // 施設入所
+    };
+
+    MEMBER_DATE_FIELDS.forEach(f => {
+        const yearSelect = document.getElementById(f.year);
+        const monthSelect = document.getElementById(f.month);
+        const daySelect = document.getElementById(f.day);
+        if (!yearSelect || !monthSelect || !daySelect) return;
+
+        // 年
+        const [fromYear, toYear] = yearRanges[f.year];
+        yearSelect.replaceChildren(new Option('--', ''));
+        for (let y = fromYear; y <= toYear; y++) {
+            yearSelect.appendChild(new Option(`${y}年`, String(y)));
+        }
+
+        // 月
+        monthSelect.replaceChildren(new Option('--', ''));
+        for (let m = 1; m <= 12; m++) {
+            monthSelect.appendChild(new Option(`${m}月`, String(m)));
+        }
+
+        // 年・月が変わったら日を再生成
+        yearSelect.addEventListener('change', () => updateMemberDayOptions(f));
+        monthSelect.addEventListener('change', () => updateMemberDayOptions(f));
+
+        updateMemberDayOptions(f);
+    });
+}
+
 // ========================================
 // 共通設定（管理画面専用・要認証）
 // ========================================
