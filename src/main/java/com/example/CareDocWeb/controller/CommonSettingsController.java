@@ -3,6 +3,7 @@ package com.example.CareDocWeb.controller;
 import com.example.CareDocWeb.entity.CommonSettings;
 import com.example.CareDocWeb.service.CommonSettingsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,10 +29,11 @@ public class CommonSettingsController {
 
     private final CommonSettingsService commonSettingsService;
 
+    @Value("${READ_ONLY_MODE:true}")
+    private boolean readOnly;
+
     /**
      * 共通設定を取得する。
-     *
-     * @return 共通設定データ
      */
     @GetMapping
     public ResponseEntity<CommonSettings> find() {
@@ -40,13 +42,15 @@ public class CommonSettingsController {
     }
 
     /**
-     * 共通設定を更新する。
-     *
-     * @param settings 更新する共通設定データ
-     * @return 更新後の共通設定
+     * 共通設定を更新する（閲覧専用モードでは禁止）。
      */
     @PutMapping
-    public ResponseEntity<CommonSettings> update(@RequestBody CommonSettings settings) {
+    public ResponseEntity<?> update(@RequestBody CommonSettings settings) {
+        if (readOnly) {
+            return ResponseEntity.status(403)
+                    .body("現在は閲覧専用モードのため、共通設定の更新はできません。");
+        }
+
         CommonSettings updatedSettings = commonSettingsService.save(settings);
         return ResponseEntity.ok(updatedSettings);
     }

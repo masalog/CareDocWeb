@@ -3,6 +3,7 @@ package com.example.CareDocWeb.controller;
 import com.example.CareDocWeb.entity.Member;
 import com.example.CareDocWeb.service.MemberService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,15 +40,13 @@ public class MemberController {
 
     private final MemberService memberService;
 
+    @Value("${READ_ONLY_MODE:true}")
+    private boolean readOnly;
+
     // ========================================
     // 公開API（認証不要）
     // ========================================
 
-    /**
-     * 利用者一覧を取得する。
-     *
-     * @return 利用者のリスト
-     */
     @GetMapping("/api/members")
     public ResponseEntity<List<Member>> findAll() {
         List<Member> members = memberService.findAll();
@@ -58,57 +57,39 @@ public class MemberController {
     // 管理API（Cognito 認証必須）
     // ========================================
 
-    /**
-     * IDを指定して利用者詳細を取得する。
-     *
-     * @param id 利用者のUUID
-     * @return 該当する利用者
-     */
     @GetMapping("/api/admin/members/{id}")
     public ResponseEntity<Member> findById(@PathVariable UUID id) {
         Member member = memberService.findById(id);
         return ResponseEntity.ok(member);
     }
 
-    /**
-     * 利用者を新規登録する。
-     *
-     * @param member 登録する利用者データ
-     * @return 登録後の利用者（ID・タイムスタンプ付き）
-     */
+    // ---- 編集禁止（閲覧専用モード） ----
     @PostMapping("/api/admin/members")
-    public ResponseEntity<Member> create(@RequestBody Member member) {
+    public ResponseEntity<?> create(@RequestBody Member member) {
+        if (readOnly) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("現在は閲覧専用モードのため、登録はできません。");
+        }
         Member savedMember = memberService.save(member);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedMember);
     }
 
-    /**
-     * IDを指定して利用者を更新する。
-     *
-     * <p>指定IDの利用者が存在しない場合は404を返す。
-     * 存在確認と更新はサービス層で同一トランザクション内に処理される。</p>
-     *
-     * @param id 更新対象の利用者UUID
-     * @param member 更新データ
-     * @return 更新後の利用者
-     */
     @PutMapping("/api/admin/members/{id}")
-    public ResponseEntity<Member> update(@PathVariable UUID id, @RequestBody Member member) {
+    public ResponseEntity<?> update(@PathVariable UUID id, @RequestBody Member member) {
+        if (readOnly) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("現在は閲覧専用モードのため、更新はできません。");
+        }
         Member updatedMember = memberService.update(id, member);
         return ResponseEntity.ok(updatedMember);
     }
 
-    /**
-     * IDを指定して利用者を削除する。
-     *
-     * <p>指定IDの利用者が存在しない場合は404を返す。
-     * 存在確認と削除はサービス層で同一トランザクション内に処理される。</p>
-     *
-     * @param id 削除対象の利用者UUID
-     * @return 204 No Content
-     */
     @DeleteMapping("/api/admin/members/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<?> delete(@PathVariable UUID id) {
+        if (readOnly) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("現在は閲覧専用モードのため、削除はできません。");
+        }
         memberService.delete(id);
         return ResponseEntity.noContent().build();
     }
