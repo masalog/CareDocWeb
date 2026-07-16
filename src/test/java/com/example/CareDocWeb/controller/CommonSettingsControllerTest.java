@@ -2,6 +2,7 @@ package com.example.CareDocWeb.controller;
 
 import com.example.CareDocWeb.entity.CommonSettings;
 import com.example.CareDocWeb.service.CommonSettingsService;
+import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * （API Gateway の Cognito Authorizer による認証はインフラ層の責務であり、
  * 本テストではパスマッピングとコントローラーの動作のみを検証する）</p>
  */
+@ActiveProfiles("test")
 @WebMvcTest(CommonSettingsController.class)
 class CommonSettingsControllerTest {
 

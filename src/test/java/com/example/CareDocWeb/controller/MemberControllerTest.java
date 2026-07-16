@@ -2,6 +2,7 @@ package com.example.CareDocWeb.controller;
 
 import com.example.CareDocWeb.entity.Member;
 import com.example.CareDocWeb.service.MemberService;
+import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       責務であり、本テストではパスマッピングとコントローラーの動作のみ検証する）</li>
  * </ul>
  */
+@ActiveProfiles("test")
 @WebMvcTest(MemberController.class)
 class MemberControllerTest {
 
