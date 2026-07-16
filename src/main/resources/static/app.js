@@ -661,6 +661,7 @@ function initMemberDateSelects() {
  */
 function updateMemberDayOptions(f) {
     const year = parseInt(document.getElementById(f.year).value, 10);
+    const month = parseInt(document.getElementById(f.month).value, 10);
     const daySelect = document.getElementById(f.day);
 
     const lastDay = (year && month) ? new Date(year, month, 0).getDate() : 31;
@@ -674,6 +675,35 @@ function updateMemberDayOptions(f) {
     // 前回の選択を可能なら復元（末日超過なら未選択に戻る）
     if (prev && parseInt(prev, 10) <= lastDay) {
         daySelect.value = prev;
+    }
+}
+
+/**
+ * 年セレクトに指定した年の option が無ければ追加する（編集時の既存データ用）。
+ * プルダウンの範囲外の年が登録済みでも、編集時に「--」に落ちて
+ * 保存時に null 上書きされる事故を防ぐ。
+ * @param {string} yearSelectId - 年セレクトのID
+ * @param {number|null} year - 既存データの年（null/undefinedなら何もしない）
+ */
+function ensureYearOption(yearSelectId, year) {
+    if (!year) return;
+    const yearSelect = document.getElementById(yearSelectId);
+    const value = String(year);
+
+    // 既に存在するなら何もしない
+    if ([...yearSelect.options].some(o => o.value === value)) return;
+
+    // 昇順を保つ位置に挿入（先頭の「--」は飛ばす）
+    let inserted = false;
+    for (let i = 1; i < yearSelect.options.length; i++) {
+        if (parseInt(yearSelect.options[i].value, 10) > year) {
+            yearSelect.add(new Option(`${year}年`, value), i);
+            inserted = true;
+            break;
+        }
+    }
+    if (!inserted) {
+        yearSelect.appendChild(new Option(`${year}年`, value));
     }
 }
 
