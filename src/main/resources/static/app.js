@@ -483,6 +483,9 @@ function saveMember() {
         endYear: parseInt(document.getElementById('m-end-year').value) || null,
         endMonth: parseInt(document.getElementById('m-end-month').value) || null,
         endDay: parseInt(document.getElementById('m-end-day').value) || null,
+        institutionYear: parseInt(document.getElementById('m-inst-year').value) || null,
+        institutionMonth: parseInt(document.getElementById('m-inst-month').value) || null,
+        institutionDay: parseInt(document.getElementById('m-inst-day').value) || null,
     };
 
     // バリデーション
