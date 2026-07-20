@@ -44,81 +44,25 @@ aws codepipeline get-pipeline-state --name CareDocWebPipeline --query "stageStat
 
 ```text
 CareDocWeb/
-├── docs/
-│   ├── CareDocWeb API設計書.md
-│   ├── CareDocWeb DB設計書.md
-│   ├── CareDocWeb PDF生成サービス実装方針.md
-│   ├── CareDocWeb インフラ設計書（CDK）.md
-│   └── CareDocWeb 要件定義書.md
+├── docs/                        # 設計資料(要件定義・API/DB/インフラ設計書・実装方針)
 ├── src/
 │   ├── main/
-│   │   ├── java/com/example/CareDocWeb/
-│   │   │   ├── CareDocWebApplication.java
-│   │   │   ├── StreamLambdaHandler.java
-│   │   │   ├── config/
-│   │   │   │   ├── DataInitializer.java
-│   │   │   │   └── DataSourceConfig.java   ← 本番DataSource（SSMから接続情報取得）
-│   │   │   ├── controller/
-│   │   │   │   ├── MemberController.java
-│   │   │   │   ├── CommonSettingsController.java
-│   │   │   │   ├── PdfController.java
-│   │   │   │   └── HealthController.java   ← ヘルスチェック（死活監視・ウォームアップ用）
-│   │   │   ├── dto/
-│   │   │   │   └── PdfGenerateRequest.java
-│   │   │   ├── entity/
-│   │   │   │   ├── Member.java
-│   │   │   │   └── CommonSettings.java
-│   │   │   ├── exception/
-│   │   │   │   ├── GlobalExceptionHandler.java
-│   │   │   │   └── ResourceNotFoundException.java
-│   │   │   ├── repository/
-│   │   │   │   ├── MemberRepository.java
-│   │   │   │   └── CommonSettingsRepository.java
-│   │   │   └── service/
-│   │   │       ├── MemberService.java
-│   │   │       ├── MemberServiceImpl.java
-│   │   │       ├── CommonSettingsService.java
-│   │   │       ├── CommonSettingsServiceImpl.java
-│   │   │       ├── PdfService.java
-│   │   │       ├── PdfServiceImpl.java
-│   │   │       └── LayoutLoader.java
+│   │   ├── java/.../CareDocWeb/
+│   │   │   ├── config/          # DataSource 設定(SSM から接続情報取得)・初期データ投入
+│   │   │   ├── controller/      # REST API(公開 API と管理 API /api/admin/** を分離)
+│   │   │   ├── dto/             # リクエスト DTO
+│   │   │   ├── entity/          # エンティティ(Member, CommonSettings)
+│   │   │   ├── exception/       # 共通例外ハンドリング
+│   │   │   ├── repository/      # Spring Data JPA リポジトリ
+│   │   │   └── service/         # 業務ロジック・PDF 生成
 │   │   └── resources/
-│   │       ├── application.yaml
-│   │       ├── application-local.yaml
-│   │       ├── static/
-│   │       │   ├── index.html        ← PDF生成（公開ページ）
-│   │       │   ├── admin.html        ← 管理画面（利用者管理・共通設定）
-│   │       │   ├── style.css
-│   │       │   └── app.js
-│   │       ├── fonts/
-│   │       │   └── NotoSansJP-Regular.ttf
-│   │       ├── positions/
-│   │       │   └── converted_positions.yaml
-│   │       └── templates/
-│   │           └── template.pdf
-│   └── test/
-│       ├── java/com/example/CareDocWeb/
-│       │   ├── CareDocWebApplicationTests.java
-│       │   ├── controller/
-│       │   │   ├── MemberControllerTest.java
-│       │   │   ├── CommonSettingsControllerTest.java
-│       │   │   ├── PdfControllerTest.java
-│       │   │   └── HealthControllerTest.java
-│       │   └── service/
-│       │       ├── MemberServiceImplTest.java
-│       │       ├── CommonSettingsServiceImplTest.java
-│       │       └── PdfServiceImplTest.java
-│       └── resources/
-│           └── application.yaml
-├── cdk/                                 ← インフラ（AWS CDK / Java）
-│   ├── src/main/java/com/example/cdk/
-│   │   ├── AppStage.java
-│   │   ├── BackendStack.java             ← Lambda + API Gateway スタック（API）                 
-│   │   ├── CareDocWebCdkApp.java         ← CDKアプリのエントリポイント
-│   │   ├── FrontendStack.java            ← S3 + CloudFront スタック（配信）
-│   │   └── PipelineStack.java
-│   ├── cdk.json
-│   └── pom.xml
+│   │       ├── static/          # フロントエンド(S3 + CloudFront 配信、admin は Cognito 認証)
+│   │       ├── fonts/           # PDF 埋め込み用日本語フォント
+│   │       ├── positions/       # PDF 座標定義
+│   │       └── templates/       # PDF テンプレート
+│   └── test/                    # コントローラー統合テスト・サービス単体テスト
+├── cdk/                   
+│   └── src/.../cdk/             # Pipeline / Backend / Frontend スタック、Cognito コンストラクト
 ├── pom.xml
 ├── README.md
 └── SECURITY.md
