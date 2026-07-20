@@ -5,9 +5,17 @@ import java.util.Map;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.services.apigateway.AccessLogField;
+import software.amazon.awscdk.services.apigateway.AccessLogFormat;
+import software.amazon.awscdk.services.apigateway.AuthorizationType;
+import software.amazon.awscdk.services.apigateway.CognitoUserPoolsAuthorizer;
 import software.amazon.awscdk.services.apigateway.LambdaRestApi;
+import software.amazon.awscdk.services.apigateway.LogGroupLogDestination;
+import software.amazon.awscdk.services.apigateway.MethodOptions;
+import software.amazon.awscdk.services.apigateway.ProxyResourceOptions;
 import software.amazon.awscdk.services.apigateway.StageOptions;
 import software.amazon.awscdk.services.lambda.Alias;
 import software.amazon.awscdk.services.lambda.Code;
@@ -15,16 +23,12 @@ import software.amazon.awscdk.services.lambda.Function;
 import software.amazon.awscdk.services.lambda.Runtime;
 import software.amazon.awscdk.services.lambda.SnapStartConf;
 import software.amazon.awscdk.services.lambda.Version;
+import software.amazon.awscdk.services.logs.LogGroup;
+import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.ssm.IStringParameter;
 import software.amazon.awscdk.services.ssm.SecureStringParameterAttributes;
 import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
-
-import software.amazon.awscdk.services.apigateway.AuthorizationType;
-import software.amazon.awscdk.services.apigateway.CognitoUserPoolsAuthorizer;
-import software.amazon.awscdk.services.apigateway.MethodOptions;
-import software.amazon.awscdk.services.apigateway.ProxyResourceOptions;
-import software.amazon.awscdk.services.apigateway.Resource;
 
 /**
  * バックエンド（Lambda + API Gateway）用スタック。
@@ -116,10 +120,19 @@ public class BackendStack extends Stack {
                 .build();
 
         // ------------------------------------------------------------
-        // 5. API Gateway（REST API）
+        // 5. API Gateway(REST API)
         //    全パスを Lambda にプロキシ統合する
-        //    handler にはエイリアスを渡す（$LATEST ではなく SnapStart 対象バージョン）
+        //    handler にはエイリアスを渡す($LATEST ではなく SnapStart 対象バージョン)
         // ------------------------------------------------------------
+
+        // アクセスログの出力先 Log Group。
+        // 保持期間を設定しないと無期限保存でコストが積み上がるため、
+        // デモ用途として1ヶ月で自動削除する。
+        LogGroup accessLogGroup = LogGroup.Builder.create(this, "ApiAccessLog")
+                .retention(RetentionDays.ONE_MONTH)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
         this.api = LambdaRestApi.Builder.create(this, "RestApi")
                 .handler(apiAlias)
                 .restApiName("CareDocWeb API")
@@ -130,15 +143,30 @@ public class BackendStack extends Stack {
                 // "*/*" を指定すると、クライアントの Accept ヘッダーに応じて
                 // API Gateway が Base64 を自動デコードしてバイナリを返す。
                 .binaryMediaTypes(List.of("*/*"))
-                // デモ公開向けのコスト保護：ステージ全体にスロットリングを適用。
+                // API Gateway が CloudWatch Logs へ書き込むためのアカウント設定
+                .cloudWatchRole(true)
+                // デモ公開向けのコスト保護:ステージ全体にスロットリングを適用。
                 // 旧構成の「使用量プラン + API キー」は、メソッド側で apiKeyRequired を
                 // 設定していないため“キー無しリクエストには効かない”飾りになっていた。
                 // ステージレベルの制限は全リクエストに無条件で効くため、こちらで置き換える。
-                // （この置き換えにより、Stage 移行で論理 ID が変わった UsagePlanKey の
-                //   409 競合も解消される）
+                // (この置き換えにより、Stage 移行で論理 ID が変わった UsagePlanKey の
+                //   409 競合も解消される)
                 .deployOptions(StageOptions.builder()
                         .throttlingRateLimit(10)    // 秒間 10 リクエスト
                         .throttlingBurstLimit(20)   // バースト 20 リクエスト
+                        // アクセスログの出力先と形式。
+                        // 認証監査を目的に、呼び出し元IP・認可エラー・
+                        // 操作した管理者(Cognitoのemail)を記録する。
+                        .accessLogDestination(new LogGroupLogDestination(accessLogGroup))
+                        .accessLogFormat(AccessLogFormat.custom(String.join(",",
+                                "{\"requestId\":\"" + AccessLogField.contextRequestId() + "\"",
+                                "\"requestTime\":\"" + AccessLogField.contextRequestTime() + "\"",
+                                "\"ip\":\"" + AccessLogField.contextIdentitySourceIp() + "\"",
+                                "\"method\":\"" + AccessLogField.contextHttpMethod() + "\"",
+                                "\"path\":\"" + AccessLogField.contextPath() + "\"",
+                                "\"status\":\"" + AccessLogField.contextStatus() + "\"",
+                                "\"authorizerError\":\"" + AccessLogField.contextAuthorizerError() + "\"",
+                                "\"cognitoUser\":\"$context.authorizer.claims.email\"}")))
                         .build())
                 .build();
 
@@ -150,24 +178,24 @@ public class BackendStack extends Stack {
         //    ※ CloudFront は /api/* をパスそのままオリジンに転送するため、
         //      API Gateway 側のリソースパスも /api/admin で受ける。
         // ------------------------------------------------------------
-                AuthConstruct auth = new AuthConstruct(this, "Auth");
+        AuthConstruct auth = new AuthConstruct(this, "Auth");
 
-                CognitoUserPoolsAuthorizer authorizer = CognitoUserPoolsAuthorizer.Builder
-                        .create(this, "AdminAuthorizer")
-                        .cognitoUserPools(List.of(auth.getUserPool()))
-                        .build();
+        CognitoUserPoolsAuthorizer authorizer = CognitoUserPoolsAuthorizer.Builder
+                .create(this, "AdminAuthorizer")
+                .cognitoUserPools(List.of(auth.getUserPool()))
+                .build();
 
-                api.getRoot()
-                        .addResource("api")
-                        .addResource("admin")
-                        .addProxy(ProxyResourceOptions.builder()
-                                .anyMethod(false)
-                                .build())
-                        .addMethod("ANY", null,
-                                MethodOptions.builder()
-                                        .authorizationType(AuthorizationType.COGNITO)
-                                        .authorizer(authorizer)
-                                        .build());
+        api.getRoot()
+                .addResource("api")
+                .addResource("admin")
+                .addProxy(ProxyResourceOptions.builder()
+                        .anyMethod(false)
+                        .build())
+                .addMethod("ANY", null,
+                        MethodOptions.builder()
+                                .authorizationType(AuthorizationType.COGNITO)
+                                .authorizer(authorizer)
+                                .build());
 
         // ------------------------------------------------------------
         // 7. 出力
