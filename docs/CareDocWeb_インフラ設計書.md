@@ -19,7 +19,7 @@ CloudFront を公開エンドポイントとして、静的配信（S3）と API
 
 ### 依存方向（一方向・循環させない）
 
-```
+```text
 BackendStack（API）───[ exportValue: API URL ]───▶ FrontendStack（CloudFront）
 ```
 
@@ -62,7 +62,7 @@ BackendStack（API）───[ exportValue: API URL ]───▶ FrontendStack
 
 ## システム構成図
 
-```
+```text
       インターネット
            │ HTTPS
            ▼
