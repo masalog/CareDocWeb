@@ -178,8 +178,8 @@ CareDocWeb/
 ## デプロイ手順
 
 ```powershell
-# cdk ディレクトリに移動
-cd C:\Users\dghy1\IdeaProjects\CareDocWeb\cdk
+# リポジトリルートから、cdk ディレクトリに移動
+cd cdk
 
 # 差分確認（何が作られるか事前チェック）
 npx cdk diff
