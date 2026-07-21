@@ -7,6 +7,12 @@ info:
     Java 21 + Spring Boot 4.x（Lambda + API Gateway）で稼働。
     利用者データ・共通設定は JSON、PDF生成は application/pdf を返す。
 
+    - `/api/members`（一覧取得のみ）・`/api/pdf/**`・`/api/health` は認証不要の公開API。
+    - `/api/admin/**` は管理画面（admin.html）専用で、API Gateway の Cognito Authorizer により
+      認証必須。有効な ID トークンがないリクエストはアプリに到達しない。
+    - `READ_ONLY_MODE` が有効な間は `/api/admin/**` の登録・更新・削除系エンドポイントが
+      403 を返す（閲覧専用モード）。
+
 servers:
   - url: https://dre5onrtbrgty.cloudfront.net
 
@@ -14,6 +20,7 @@ paths:
   /api/members:
     get:
       summary: 利用者一覧取得
+      description: 公開API。認証不要。index.html（PDF生成ページ）が使用する。
       responses:
         '200':
           description: 利用者一覧
@@ -24,25 +31,10 @@ paths:
                 items:
                   $ref: '#/components/schemas/Member'
 
-    post:
-      summary: 利用者登録
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Member'
-      responses:
-        '201':
-          description: 登録成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Member'
-
-  /api/members/{id}:
+  /api/admin/members/{id}:
     get:
       summary: 利用者詳細取得
+      description: 管理API。Cognito 認証必須。
       parameters:
         - name: id
           in: path
@@ -57,11 +49,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Member'
+        '401':
+          description: 未認証（IDトークンなし）
         '404':
           description: 利用者が存在しません
 
     put:
       summary: 利用者更新
+      description: 管理API。Cognito 認証必須。READ_ONLY_MODE 有効時は 403 を返す。
       parameters:
         - name: id
           in: path
@@ -82,11 +77,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Member'
+        '401':
+          description: 未認証（IDトークンなし）
+        '403':
+          description: 閲覧専用モードのため更新不可
         '404':
           description: 利用者が存在しません
 
     delete:
       summary: 利用者削除
+      description: 管理API。Cognito 認証必須。READ_ONLY_MODE 有効時は 403 を返す。
       parameters:
         - name: id
           in: path
@@ -97,12 +97,39 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          description: 未認証（IDトークンなし）
+        '403':
+          description: 閲覧専用モードのため削除不可
         '404':
           description: 利用者が存在しません
 
-  /api/settings:
+  /api/admin/members:
+    post:
+      summary: 利用者登録
+      description: 管理API。Cognito 認証必須。READ_ONLY_MODE 有効時は 403 を返す。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Member'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '401':
+          description: 未認証（IDトークンなし）
+        '403':
+          description: 閲覧専用モードのため登録不可
+
+  /api/admin/settings:
     get:
       summary: 共通設定取得
+      description: 管理API。Cognito 認証必須。
       responses:
         '200':
           description: 共通設定
@@ -110,9 +137,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CommonSettings'
+        '401':
+          description: 未認証（IDトークンなし）
 
     put:
       summary: 共通設定更新
+      description: 管理API。Cognito 認証必須。READ_ONLY_MODE 有効時は 403 を返す。
       requestBody:
         required: true
         content:
@@ -126,6 +156,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CommonSettings'
+        '401':
+          description: 未認証（IDトークンなし）
+        '403':
+          description: 閲覧専用モードのため更新不可
 
   /api/pdf/generate:
     post:
