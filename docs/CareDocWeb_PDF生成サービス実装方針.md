@@ -53,7 +53,7 @@ CareDocWeb（Spring Boot）に Java で移植する。
 - **PdfGenerateRequest**: `memberId`・`applicationYear/Month/Day` は必須、`changeReason` は任意。`@Valid` で検証
 - **PdfService.generate()**: テンプレートPDFを読み込み、座標YAML（`converted_positions.yaml`）の位置にテキストを描画し、`ByteArrayOutputStream` に直接出力（一時ファイル不使用）。性別・介護度は該当座標に「〇」を描画
 - **PdfController**: 申請日＋利用者名から `〇〇年〇月〇日 氏名様 介護認定申請書.pdf` 形式のファイル名を生成し、日本語のため `URLEncoder` でUTF-8エンコードして `filename*=UTF-8''...` で指定
-- **PDFBox 3.x 移行**: `PDDocument.load()` は非推奨のため `Loader.loadPDF()` を使用。フォント・テンプレートは `classpath:` から読み込みファイルシステムに依存しない
+- **PDFBox 3.x 移行**: `PDDocument.load()` はPDFBox 3.0で削除されたため `Loader.loadPDF()` を使用。フォント・テンプレートは `classpath:` から読み込みファイルシステムに依存しない
 
 ---
 
