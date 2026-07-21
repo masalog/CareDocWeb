@@ -68,7 +68,7 @@ BackendStack（API）───[ exportValue: API URL ]───▶ FrontendStack
            ▼
    ┌───────────────────┐
    │   CloudFront      │  ← CDN + HTTPS証明書（デフォルト証明書）
-   │  (Distribution)   │  ← 唯一の公開エンドポイント
+   │  (Distribution)   │  ← 公開エンドポイント
    └───────────────────┘
        ┌───┴────────────────────┐
        │ /*                     │ /api/*
