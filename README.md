@@ -85,7 +85,7 @@ CareDocWeb/
 - [要件定義書](docs/CareDocWeb_要件定義書.md)
 - [API設計書](docs/CareDocWeb_API設計書.md)
 - [DB設計書](docs/CareDocWeb_DB設計書.md)
-- [インフラ設計書（CDK）](docs/CareDocWeb_インフラ設計書（CDK）.md)
+- [インフラ設計書](docs/CareDocWeb_インフラ設計書（CDK）.md)
 - [PDF生成サービス実装方針](docs/CareDocWeb_PDF生成サービス実装方針.md)
 
 ---
@@ -98,7 +98,7 @@ CareDocWeb/
 mvn spring-boot:run
 ```
 
-デフォルトで `local` プロファイル（H2インメモリDB）が適用されます。Supabase接続や本番ビルドなど詳細は [インフラ設計書（CDK）](docs/CareDocWeb_インフラ設計書（CDK）.md) を参照してください。
+デフォルトで `local` プロファイル（H2インメモリDB）が適用されます。
 
 ---
 
