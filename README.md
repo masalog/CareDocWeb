@@ -92,7 +92,7 @@ CareDocWeb/
 
 ## 🏗 ローカル起動
 
-※ JAVA_HOME に Java 21 JDK のパスが設定されている必要があります
+※ JAVA_HOME に Java 21 JDK のパスが設定されている必要があります。
 
 ```bash
 mvn spring-boot:run
