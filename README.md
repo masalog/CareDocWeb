@@ -90,15 +90,12 @@ CareDocWeb/
 
 ---
 
-## 🏗 ローカル起動
+## 🏗 スナップスタート
 
-※ JAVA_HOME に Java 21 JDK のパスが設定されている必要があります。
+コスト削減のため、EC2 の代わりに Lambda を使用したため、Java コンパイル型の Spring Boot の起動時にコールドスタートが問題化。
 
-```bash
-mvn spring-boot:run
-```
+それに対して、Lambda の SnapStart と EventBridge cron を使用して問題をクリア。詳細は [Lambda高速化報告書](docs/CareDocWeb_Lambda高速化報告書.md) にまとめています。
 
-デフォルトで `local` プロファイル（H2インメモリDB）が適用されます。
 
 ---
 
