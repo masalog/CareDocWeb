@@ -15,6 +15,18 @@ aws codepipeline get-pipeline-state --name CareDocWebPipeline --query "stageStat
 
 ---
 
+## 🏗 SnapStart によるコールドスタート対策
+
+コスト削減のため EC2 ではなく Lambda を採用したが、Java（Spring Boot）は起動が重く、
+コールドスタート時に約 7 秒かかる問題が発生。
+
+Lambda SnapStart ＋ EventBridge cron による定期ウォームアップで、
+**95% 以上のアクセスを 0.1 秒以内**（コールド時も典型約 1.2 秒）に改善した。
+詳細は [Lambda高速化報告書](docs/CareDocWeb_Lambda高速化報告書.md) を参照。
+
+---
+
+
 ## ✨ 主な機能
 - プルダウンから名前と申請年月日を選択
 - 変更更新理由の入力（変更更新の場合のみ）
@@ -87,15 +99,6 @@ CareDocWeb/
 - [DB設計書](docs/CareDocWeb_DB設計書.md)
 - [インフラ設計書](docs/CareDocWeb_インフラ設計書.md)
 - [PDF生成サービス実装方針](docs/CareDocWeb_PDF生成サービス実装方針.md)
-
----
-
-## 🏗 スナップスタート
-
-コスト削減のため、EC2 の代わりに Lambda を使用したため、Java コンパイル型の Spring Boot の起動時にコールドスタートが問題化。
-
-それに対して、Lambda の SnapStart と EventBridge cron を使用して問題をクリア。詳細は [Lambda高速化報告書](docs/CareDocWeb_Lambda高速化報告書.md) にまとめています。
-
 
 ---
 
