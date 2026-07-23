@@ -216,6 +216,13 @@ npx cdk destroy
 | ⑤ 管理画面認証 | Cognito User Pool + `CognitoUserPoolsAuthorizer` を `/api/admin/**` に適用 | ✅ 完了 |
 | ⑥ CI/CD | CDK Pipelines（自己更新パイプライン）による `cdk deploy` 自動化 | ✅ 完了 |
 
+## Lambda コールドスタート高速化（SnapStart）
+
+Java + Spring Boot の Lambda はコールドスタートが重い（フルコールド 約6.8秒）。
+SnapStart は**公開バージョンのスナップショットにのみ効く**ため、`LambdaRestApi` に
+`Function` を直接渡すと `$LATEST` が呼ばれて効果が出ない。公開バージョン→エイリアス
+経由で呼び出すことで有効化する。
+
 ### Phase ④ の実装ポイント
 
 - BackendStack が生成した `LambdaRestApi` オブジェクトを FrontendStack に直接渡し、スタック分離を保ったまま統合（CDKが Export/ImportValue を自動生成）
@@ -267,41 +274,3 @@ Distribution ID は FrontendStack の `CfnOutput` から `envFromCfnOutputs` で
   実行時間ベースの課金（無料枠あり）で、実行頻度の低い本用途では V1 の月額固定課金より低コスト
 - **GitHub 接続（CodeStarConnections）**: 初回のみ AWS コンソールでの承認が必要。以降は
   自動で `main` の push を検知する
-
-## Lambda コールドスタート高速化（SnapStart）
-
-Java + Spring Boot の Lambda はコールドスタートが重い（フルコールド 約6.8秒）。
-SnapStart は**公開バージョンのスナップショットにのみ効く**ため、`LambdaRestApi` に
-`Function` を直接渡すと `$LATEST` が呼ばれて効果が出ない。公開バージョン→エイリアス
-経由で呼び出すことで有効化する。
-
-```java
-Version apiVersion = apiFunction.getCurrentVersion();   // 公開バージョン発行
-Alias apiAlias = Alias.Builder.create(this, "ApiAlias")
-        .aliasName("live").version(apiVersion).build();  // エイリアス "live"
-
-LambdaRestApi.Builder.create(this, "RestApi")
-        .handler(apiAlias)   // ← $LATEST ではなくエイリアスを呼ぶ
-        .build();
-```
-
-→ この変更だけでコールドスタート **6.8秒 → 約1.1秒** に短縮（メモリ2048MB維持・追加費用ゼロ）。
-
-**検討したが不採用にした施策**
-
-- メモリ 1024MB/3008MB への変更：いずれも実測でコールドスタートが悪化（2048MBが最速）
-- JITオプション（`TieredStopAtLevel=1`）：実測で約2.7秒に悪化
-- DB接続 priming（SnapStart `afterRestore` フックで復元直後にDB接続を温める）：DB接続コストを
-  「初回リクエスト」から「Restore Duration」に移動させるだけで総時間は減らず、むしろ悪化
-- Provisioned Concurrency：コールドスタートは実質ゼロだが常時課金でデモ用途には割高
-
-**ボトルネック**: CloudWatch Logs の `REPORT` 行で実測した結果、コールドスタートに残る
-約1.2秒の主因は初回の DB 接続確立（コールド時 Duration 1521ms、ウォーム時 323ms）。
-メモリ・JITの調整はDB接続時間に影響しないため効果がなかった。
-
-**定期ウォームアップ**: EventBridge cron（5分ごと）で CloudFront経由に `/api/health` を叩き、
-Lambda のアイドル回収によるコールドスタートを抑制する（実行環境の維持を保証するものではなく、ベストエフォート）。
-コストは Lambda 無料枠の約0.86%（月約8,640回）。
-
-> ⚠️ 計測時の注意：デプロイ直後はスナップショット作成が非同期のためフルコールドになる。
-> 5〜10分待ってから計測すること。
